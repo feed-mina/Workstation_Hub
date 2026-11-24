@@ -23,7 +23,7 @@
 
 연결 토큰·OAuth 클라이언트와 갱신 토큰·업로드 세션 주소는 Windows 현재 사용자 DPAPI로 암호화해 로컬에 저장합니다. 화면에는 비밀값을 보내지 않습니다. [개인정보 처리 안내](docs/privacy.md)
 
-로컬 컴파일·JavaScript 상태 검사와 [GitHub Windows 검사](https://github.com/feed-mina/Workstation_Hub/actions/runs/45383053432)가 통과했습니다. 연결 단절·업로드 재개·중복 방지·기록 복구 등을 포함한 32개 검사, 실제 FFmpeg로 만든 600초 영상의 길이 검사와 기존 창 회귀 테스트 코드의 컴파일을 확인했습니다. 테스트는 가짜 HA/Google 응답과 생성한 영상으로 수행하며, 집 안 영상 업로드나 실제 기기 조작을 대신하지 않습니다. 이 PC의 새 실행 파일은 앱 제어 정책으로 실행할 수 없어 Store 서명본 설치 후 계정 연결·기기·창 회귀 시험이 남아 있습니다. Store 0.2는 인증 심사 중입니다. 0.3은 제출용 패키지 검사까지 끝냈고, 브라우저 URL 확인 실패로 화면 자동 제어가 중단돼 **Store 미제출·미설치** 상태입니다.
+로컬 컴파일·JavaScript 상태 검사와 [GitHub Windows 검사](https://github.com/feed-mina/Workstation_Hub/actions/runs/45383053432)가 통과했습니다. 연결 단절·업로드 재개·중복 방지·기록 복구 등을 포함한 32개 검사, 실제 FFmpeg로 만든 600초 영상의 길이 검사와 기존 창 회귀 테스트 코드의 컴파일을 확인했습니다. 테스트는 가짜 HA/Google 응답과 생성한 영상으로 수행하며, 집 안 영상 업로드나 실제 기기 조작을 대신하지 않습니다. 이 PC의 새 실행 파일은 앱 제어 정책으로 실행할 수 없어 Store 서명본 설치 후 계정 연결·기기·창 회귀 시험이 남아 있습니다. 2026-11-24에 **0.3.0.0을 Smart Home 0.3 Private 패키지 플라이트로 제출해 인증 진행 중**임을 확인했습니다. 기존 비공개 테스터 그룹만 대상으로 하며 승인 후 게시하도록 설정했습니다. 기존 0.2 심사는 취소하지 않았고, 확인 중 Submission 2가 게시 완료 상태가 됐습니다. 0.3 설치·실제 기기 시험은 승인 후 진행합니다. [제출 기록](docs/2026-11-24/store-v03-private-submitted.md)
 
 ```powershell
 node tests/macro-ui.cjs
@@ -33,7 +33,7 @@ node tests/smart-ui.cjs
 
 ## 개발 버전 0.2.0.0
 
-소스의 0.2 개발 버전은 PC 버튼 7개를 Windows 및 OBS 명령에 연결합니다. 컴파일과 JavaScript 상태 표시 검사는 통과했습니다. 이 PC의 애플리케이션 제어 정책이 새 테스트 실행 파일을 차단해 네이티브 동작·창 회귀 시험은 실행하지 못했습니다. 0.2.0.0은 Store의 Submission 2로 제출해 인증 심사 중이며, 설치 후 검증은 대기 중입니다. 아래 Store 링크는 현재 0.1.0.0입니다.
+소스의 0.2 버전은 PC 버튼 7개를 Windows 및 OBS 명령에 연결합니다. 컴파일과 JavaScript 상태 표시 검사는 통과했습니다. 이 PC의 애플리케이션 제어 정책이 새 테스트 실행 파일을 차단해 네이티브 동작·창 회귀 시험은 실행하지 못했습니다. 0.2.0.0은 Store의 Submission 2로 게시됐으며, 설치 후 검증은 대기 중입니다. Store의 기기별 업데이트 제공에는 전파 시간이 걸릴 수 있습니다.
 
 | PC 버튼 | 0.2 소스에 구현한 동작 |
 | --- | --- |
@@ -59,7 +59,7 @@ node tests/smart-ui.cjs
 
 **[Mini Workstation Hub 다운로드 · Microsoft Store 비공개 테스트](https://apps.microsoft.com/detail/restricted/9P7W7FZV2141)**
 
-배포 버전은 **0.1.0.0**이며 Windows 10 빌드 19041 이상 및 Windows 11의 **x64** PC를 지원합니다.
+기본 배포 버전은 **0.2.0.0**, 별도 비공개 플라이트 **0.3.0.0은 인증 진행 중**입니다. Windows 10 빌드 19041 이상 및 Windows 11의 **x64** PC를 지원합니다. Store 업데이트가 전파되기 전에는 이전 버전이 보일 수 있습니다.
 
 1. Windows의 **Microsoft Store 앱**에 비공개 테스터로 등록된 개인 Microsoft 계정으로 로그인합니다.
 2. 위 링크를 열고 **Microsoft Store 앱에서 보기**를 선택합니다.
