@@ -82,9 +82,9 @@ namespace MinaDesk {
             File.WriteAllLines(list,lines,new UTF8Encoding(false));
             string options=job.Mode=="images10"?" -t 600":"";
             try {
-                await Run(settings.Ffmpeg,"-nostdin -hide_banner -loglevel error -y -f concat -safe 0 -i "+ProjectLauncher.Quote(list)+options+" -an -vf "+ProjectLauncher.Quote("scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1")+" -r 24 -c:v libx264 -pix_fmt yuv420p -movflags +faststart "+ProjectLauncher.Quote(temporary),7200,cancel);
+                await Run(settings.Ffmpeg,"-nostdin -hide_banner -loglevel error -y -f concat -safe 0 -i "+ProjectLauncher.Quote(list)+options+" -an -vf "+ProjectLauncher.Quote("scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24")+" -fps_mode cfr -c:v libx264 -preset veryfast -pix_fmt yuv420p -movflags +faststart "+ProjectLauncher.Quote(temporary),7200,cancel);
                 var info=await Probe(settings.Ffmpeg,temporary,cancel);
-                if(job.Mode=="images10" && Math.Abs(info.Seconds-600)>1)throw new IOException("완성 영상의 10분 길이 검사를 통과하지 못했습니다.");
+                if(job.Mode=="images10" && Math.Abs(info.Seconds-600)>1)throw new IOException("완성 영상의 10분 길이 검사를 통과하지 못했습니다. 실제 길이 "+info.Seconds.ToString("0.###",CultureInfo.InvariantCulture)+"초");
                 if(File.Exists(final))File.Replace(temporary,final,null);else File.Move(temporary,final);
                 job.Output=final;
             } finally { if(File.Exists(list))File.Delete(list); }
