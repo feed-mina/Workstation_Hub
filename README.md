@@ -2,6 +2,12 @@
 
 작업실에서 자주 쓰는 **매크로 패드, PC 성능, 스마트홈, 작업 기록**을 네 개의 독립된 Windows 창에 띄우는 데스크톱 앱입니다. PC 성능 창은 이 컴퓨터의 측정값을 보여 줍니다. 매크로와 스마트홈 버튼은 가상 작업실의 조명·냉방·작업 기록이 함께 반응하는 시연을 제공합니다.
 
+## 소스 이용 안내
+
+이 소스는 포트폴리오로 공개합니다. 채용·도입 검토자는 내부 평가를 위해 로컬에서 빌드하고 실행할 수 있습니다. 자체 코드나 수정본의 재배포·제품화·판매에는 feed-mina의 사전 서면 허락이 필요합니다. [포트폴리오 평가용 라이선스](LICENSE.md)
+
+외부 구성요소는 각각의 라이선스를 따릅니다. 여기에는 D3, Three.js, Lucide와 Feather 유래 아이콘, GSAP, WebView2가 포함됩니다. [제3자 라이선스 고지](licenses/)
+
 ## Microsoft Store에서 설치
 
 **[Mini Workstation Hub 다운로드 · Microsoft Store 비공개 테스트](https://apps.microsoft.com/detail/restricted/9P7W7FZV2141)**

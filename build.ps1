@@ -21,5 +21,5 @@ $exe=Join-Path $dest.FullName 'WorkstationHub.exe'
 if ($LASTEXITCODE -ne 0){throw 'Compilation failed'}
 foreach($f in @('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll')){Copy-Item -LiteralPath (Join-Path $libs $f) -Destination $dest.FullName -Force}
 Copy-Item -LiteralPath (Join-Path $SdkPath 'runtimes/win-x64/native/WebView2Loader.dll') -Destination $dest.FullName -Force
-foreach($name in @('ui','licenses','chick.ico','README.md')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $dest.FullName -Recurse -Force}
+foreach($name in @('ui','licenses','chick.ico','README.md','LICENSE.md')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $dest.FullName -Recurse -Force}
 Write-Output $exe
