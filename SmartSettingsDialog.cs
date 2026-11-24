@@ -84,6 +84,10 @@ namespace MinaDesk {
             google.Text=String.IsNullOrEmpty(draft.OAuthTokensProtected)?"유튜브 연결 전":"유튜브 연결 정보 저장됨";
             accountPanel.Controls.Add(import);accountPanel.Controls.Add(connect);accountPanel.Controls.Add(google);
             accountPanel.Controls.Add(Note("YouTube Data API가 켜진 Google Cloud 프로젝트의 데스크톱 OAuth JSON을 사용합니다. 계정 연결은 기본 브라우저에서 사용자가 승인합니다. 업로드·내 영상 상태 확인 권한을 요청하며 비공개로 올립니다. 자동 업로드는 영상 보관 탭에서 별도로 켭니다. 연결 정보는 앱의 로컬 암호화 저장소에 보관합니다."));
+            foreach(var link in new[]{new[]{"Hub 개인정보 안내","https://github.com/feed-mina/Workstation_Hub/blob/main/docs/privacy.md"},new[]{"YouTube 서비스 약관","https://www.youtube.com/t/terms"},new[]{"Google 개인정보처리방침","https://policies.google.com/privacy"}}) {
+                string url=link[1];var label=new LinkLabel { Text=link[0],AutoSize=true };
+                label.LinkClicked+=(s,e)=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url){UseShellExecute=true});accountPanel.Controls.Add(label);
+            }
             var buttons=new FlowLayoutPanel { Dock=DockStyle.Bottom,Height=46,FlowDirection=FlowDirection.RightToLeft,Padding=new Padding(5) };
             var save=new Button { Text="설정 저장",AutoSize=true };save.Click+=(s,e)=>Save();
             var cancel=new Button { Text="취소",DialogResult=DialogResult.Cancel };buttons.Controls.Add(save);buttons.Controls.Add(cancel);Controls.Add(buttons);buttons.BringToFront();CancelButton=cancel;

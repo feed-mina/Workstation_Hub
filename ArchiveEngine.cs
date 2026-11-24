@@ -228,7 +228,7 @@ namespace MinaDesk {
             }
         }
         internal object Snapshot() {
-            return new { status=Status,items=items.Values.Where(i=>i.State!="사진 수집").OrderBy(i=>i.DateConfirmed).ThenByDescending(i=>i.AddedUtc).Take(40).Select(i=>new { id=i.Id,roomId=i.RoomId,name=i.OriginalName,day=i.Day,dateConfirmed=i.DateConfirmed,state=i.State,bytes=i.Bytes,seconds=i.Seconds,image=i.Image }).ToArray(),
+            return new { status=Status,items=items.Values.Where(i=>i.State!="사진 수집").OrderBy(i=>i.DateConfirmed).ThenByDescending(i=>i.AddedUtc).Take(40).Select(i=>new { id=i.Id,roomId=i.RoomId,name=i.OriginalName,day=i.Day,dateConfirmed=i.DateConfirmed,used=Jobs.Any(j=>j.Inputs.Contains(i.Id)),state=i.State,bytes=i.Bytes,seconds=i.Seconds,image=i.Image }).ToArray(),
                 jobs=Jobs.OrderByDescending(j=>j.CreatedUtc).Take(30).Select(j=>new { id=j.Id,roomId=j.RoomId,day=j.Day,state=j.State,detail=j.Detail,count=j.Inputs.Count,extra=items.Values.Count(i=>i.RoomId==j.RoomId && i.Day==j.Day && i.DateConfirmed && !Jobs.Any(other=>other.Inputs.Contains(i.Id))),videoId=j.State=="done"?j.VideoId:null }).ToArray(),
                 photoCounts=items.Values.Where(i=>i.State=="사진 수집").GroupBy(i=>new{i.RoomId,i.Day}).Select(g=>new { roomId=g.Key.RoomId,day=g.Key.Day,count=g.Count(),longestGapSeconds=g.OrderBy(i=>i.CapturedUtc).Zip(g.OrderBy(i=>i.CapturedUtc).Skip(1),(a,b)=>(b.CapturedUtc-a.CapturedUtc).TotalSeconds).DefaultIfEmpty(0).Max() }).ToArray() };
         }

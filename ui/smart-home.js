@@ -64,7 +64,7 @@
     for(const item of items.slice(0,8)) {
       const row=element('div',null,'archive-row');
       row.append(element('b',item.name),element('small',`${item.day} · ${item.state} · ${(item.bytes/1048576).toFixed(1)}MB`));
-      if(!item.dateConfirmed)row.append(button('촬영 시각 확인','date',true,item.id));
+      if(!item.used)row.append(button(item.dateConfirmed?'촬영 시각 수정':'촬영 시각 확인','date',true,item.id));
       archive.append(row);
     }
     const days=[...new Set([...items.filter(item=>item.dateConfirmed).map(item=>item.day),...photos.map(item=>item.day)])].sort().reverse();
