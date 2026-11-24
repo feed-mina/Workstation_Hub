@@ -1,0 +1,22 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"><title>Mini Workstation Hub</title><link rel="stylesheet" href="style.css"></head><body>
+<header><img src="chick.webp" alt=""><div><small>MINA DESK</small><h1 id="title">작업실</h1></div><span id="badge" class="badge">준비 중</span></header>
+<main>
+<section id="macro" hidden>
+ <div class="row section-label"><span>매크로 키패드</span><button id="edit">이름 편집</button></div><div id="keys" class="keys"></div>
+ <div class="assistant"><img src="chick.webp" alt=""><div><b id="mode">작업 대기</b><small>PC 명령과 작업실 시나리오 시연</small></div></div>
+</section>
+<section id="pc" hidden><div class="metrics"><div><small>CPU 사용률</small><div class="metric-value"><strong id="cpu">—</strong><svg class="meter" viewBox="0 0 44 44" aria-hidden="true"><circle class="meter-track" cx="22" cy="22" r="16" pathLength="100"/><circle id="cpu-arc" cx="22" cy="22" r="16" pathLength="100"/></svg></div><div class="track"><i id="cpu-bar"></i></div></div><div><small>메모리 사용률</small><div class="metric-value"><strong id="ram">—</strong><svg class="meter" viewBox="0 0 44 44" aria-hidden="true"><circle class="meter-track" cx="22" cy="22" r="16" pathLength="100"/><circle id="ram-arc" cx="22" cy="22" r="16" pathLength="100"/></svg></div><div class="track sage"><i id="ram-bar"></i></div></div></div>
+ <div class="chart"><div class="row"><b>사용률 추이</b><small><i class="dot cpu"></i> CPU &nbsp; <i class="dot ram"></i> 메모리</small></div><svg id="plot" viewBox="0 0 360 110" role="img" aria-label="최근 CPU와 메모리 사용률"></svg><small id="interval">표본 수집 중</small></div>
+ <dl><div><dt>물리 메모리</dt><dd id="memory">—</dd></div><div><dt id="volume">시스템 드라이브 여유</dt><dd id="disk">—</dd></div><div><dt>네트워크 수신 / 송신</dt><dd id="network">—</dd></div></dl>
+</section>
+<section id="home" hidden><div class="home-card"><div class="row"><div><b>책상 스탠드</b><small id="lamp-pct">밝기</small></div><button data-home="lamp" class="switch">켜짐</button></div><input id="brightness" type="range" min="0" max="100" aria-label="가상 스탠드 밝기"></div>
+ <div class="home-card"><div class="row"><b>모니터 라이트바</b><button data-home="bar" class="switch"></button></div><div class="segments" id="temps"><button data-k="3000">전구색</button><button data-k="4500">주백색</button><button data-k="6500">주광색</button></div></div>
+ <div class="home-card row"><div><b>작업실 냉방</b><button data-home="ac" class="switch"></button></div><div class="step"><button id="cool-down" aria-label="온도 내리기">−</button><b id="target"></b><button id="cool-up" aria-label="온도 올리기">+</button></div></div>
+ <div class="segments"><button data-home="presence"></button><button data-home="door"></button></div>
+ <button id="open-room" class="room-link"><img src="chick.webp" alt="">3D 작업실 보기 <span>↗</span></button>
+</section>
+<section id="log" hidden><div class="row section-label"><span id="count">현재 세션</span><button id="clear">기록 지우기</button></div><ol id="history" aria-label="작업 기록"></ol></section>
+</main><output id="notice" aria-live="polite"></output>
+<dialog id="editor"><label for="key-name">키 이름</label><input id="key-name" maxlength="24"><div class="row"><button id="cancel">취소</button><button id="apply">저장</button></div></dialog>
+<dialog id="room-dialog"><div class="row"><b>작업실 배치 · 시연</b><button id="close-room">닫기</button></div><div id="room-stage"><div id="room-fallback" hidden>3D 표시를 사용할 수 없어요. 아래에서 기기를 조작할 수 있습니다.</div></div><div class="segments"><button id="room-lamp"></button><button id="room-ac"></button></div><div class="row"><button id="room-view-left">↶ 왼쪽</button><button id="room-view-right">오른쪽 ↷</button></div><small id="room-status"></small></dialog>
+<script src="vendor/gsap.min.js"></script><script src="app.js"></script></body></html>

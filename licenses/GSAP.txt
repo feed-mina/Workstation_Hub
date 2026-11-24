@@ -1,0 +1,2 @@
+License terms: https://gsap.com/community/standard-license/
+See the preserved GSAP distribution header.

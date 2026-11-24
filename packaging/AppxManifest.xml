@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" IgnorableNamespaces="uap rescap">
+ <Identity ProcessorArchitecture="x64" Version="0.1.0.0" Name="MiniWorkstationHub.MiniWorkstationHub" Publisher="CN=32C73371-D0A8-4F2C-B1FA-5830CE1C4DA1" />
+ <Properties><DisplayName>Mini Workstation Hub</DisplayName><PublisherDisplayName>Mini Workstation Hub</PublisherDisplayName><Logo>Assets\Chick50.png</Logo></Properties>
+ <Dependencies><TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26200.0" /></Dependencies>
+ <Resources><Resource Language="ko-KR" /></Resources>
+ <Applications><Application Id="WorkstationHub" Executable="Application\WorkstationHub.exe" EntryPoint="Windows.FullTrustApplication">
+ <uap:VisualElements Description="작업실 매크로 패드, PC 성능, 스마트홈과 작업 기록" BackgroundColor="#123E33" Square150x150Logo="Assets\Chick150.png" Square44x44Logo="Assets\Chick44.png" DisplayName="Mini Workstation Hub" /></Application></Applications>
+ <Capabilities><rescap:Capability Name="runFullTrust" /></Capabilities>
+ </Package>
