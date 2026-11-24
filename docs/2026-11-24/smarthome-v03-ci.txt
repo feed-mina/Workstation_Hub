@@ -1,0 +1,37 @@
+Workflow https://github.com/feed-mina/Workstation_Hub/actions/runs/45383053432
+Source 565355fd4c26112b4ce27e4c988fa3158cc02761
+2026-11-24T11:19:12.3105269Z PASS · actual state indicators, unknown OBS state, busy guard, media statelessness, PC actions with home disabled
+2026-11-24T11:19:12.3891343Z PASS smart-home UI: capability gating, unknown sensor, mapped room action, review, late originals, busy controls
+2026-11-24T11:19:41.5691038Z PASS HA bearer header
+2026-11-24T11:19:42.0248686Z PASS HA bearer header
+2026-11-24T11:19:42.0262492Z PASS capabilities from HA
+2026-11-24T11:19:42.0263250Z PASS unknown window is unavailable
+2026-11-24T11:19:42.0577899Z PASS HA bearer header
+2026-11-24T11:19:42.0591358Z PASS room uses mapped script
+2026-11-24T11:19:42.0595550Z PASS HA bearer header
+2026-11-24T11:19:42.0596116Z PASS music uses configured playlist
+2026-11-24T11:19:42.0612165Z PASS stale state blocks commands
+2026-11-24T11:19:42.0612821Z PASS stale scripts disabled
+2026-11-24T11:19:42.0615431Z PASS HA bearer header
+2026-11-24T11:19:42.0617314Z PASS disconnect disables cached controls
+2026-11-24T11:19:42.0619750Z PASS unlisted action rejected
+2026-11-24T11:19:42.0620196Z PASS no unintended command after failures
+2026-11-24T11:19:42.1081329Z PASS upload always requests private
+2026-11-24T11:19:42.1189689Z PASS chunk resumes at server offset
+2026-11-24T11:19:42.1193449Z PASS session persisted before interrupted transfer
+2026-11-24T11:19:42.1243870Z PASS chunk resumes at server offset
+2026-11-24T11:19:42.1244652Z PASS restart resumes without creating duplicate video
+2026-11-24T11:19:42.1293540Z PASS done requires successful processing and private status
+2026-11-24T11:19:42.1308101Z PASS expired session waits for Studio review
+2026-11-24T11:19:42.1317116Z PASS public video never marked safely archived
+2026-11-24T11:19:42.2264644Z PASS identical snapshots retain two capture times and one original
+2026-11-24T11:19:42.2319604Z PASS photo queue preserves chronological frame receipts
+2026-11-24T11:19:42.2341560Z PASS used original date cannot be changed
+2026-11-24T11:19:42.2358016Z PASS archive journal and jobs recover after restart
+2026-11-24T11:19:42.2432620Z PASS crash-truncated journal is backed up and recovered
+2026-11-24T11:19:42.5950543Z PASS real clip validated and capture filename parsed
+2026-11-24T11:19:42.5967868Z PASS renamed source is deduplicated by content hash
+2026-11-24T11:19:43.1076865Z PASS real clip render completes without automatic upload
+2026-11-24T11:19:43.1077463Z PASS source and archived original preserved
+2026-11-24T11:20:08.9253895Z PASS real photo render passes 600-second probe
+2026-11-24T11:20:08.9254490Z RESULT 32 checks passed
