@@ -13,7 +13,7 @@ namespace MinaDesk {
     sealed class Hub : ApplicationContext {
         internal static readonly string[] Keys={"macro","pc","home","log"};
         internal static readonly string[] Titles={"매크로 패드","PC 성능","스마트홈","작업 기록"};
-        static readonly HashSet<string> MacroActions=new HashSet<string>{"work_start","work_end","mic_mute","vscode","terminal","record","media","screenshot","focus","light_toggle","ac_toggle","pc_lock"};
+        static readonly HashSet<string> MacroActions=new HashSet<string>{"work_start","work_end","volume_mute","vscode","terminal","record","media","screenshot","focus","light_toggle","ac_toggle","pc_lock"};
         internal readonly Dictionary<string,DeskWindow> Windows=new Dictionary<string,DeskWindow>();
         internal readonly Dictionary<string,ToolStripMenuItem> Toggles=new Dictionary<string,ToolStripMenuItem>();
         internal readonly Settings Config;
@@ -24,6 +24,7 @@ namespace MinaDesk {
         readonly string file; readonly ContextMenuStrip menu;
         readonly Timer save=new Timer{Interval=350}, sample=new Timer{Interval=1500}, instanceTimer=new Timer{Interval=500};
         readonly Telemetry telemetry=new Telemetry();
+        readonly MacroCommands commands;
         readonly Queue<object> logs=new Queue<object>();
         readonly HashSet<string> active=new HashSet<string>();
         readonly Dictionary<string,object> studio=new Dictionary<string,object>{{"lamp",true},{"brightness",80},{"bar",true},{"kelvin",4500},{"ac",false},{"target",23},{"presence",true},{"door",false}};
@@ -37,6 +38,7 @@ namespace MinaDesk {
             CoreWebView2Environment.SetLoaderDllFolderPath(AppDomain.CurrentDomain.BaseDirectory);
             DataDir=data;Directory.CreateDirectory(data);
             file=Path.Combine(data,"windows.json");Config=Settings.Load(file);
+            commands=new MacroCommands(data,()=>{if(!ending)Broadcast();});
             Chick=new Icon(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"chick.ico"));
             menu=new ContextMenuStrip{ShowCheckMargin=true,ShowImageMargin=false};
             var label=menu.Items.Add("MINA DESK   ·   기능 켜기 / 끄기");label.Enabled=false;
@@ -48,6 +50,7 @@ namespace MinaDesk {
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("켜진 창 모두 복원",null,(s,e)=>Restore(false));
             menu.Items.Add("창 위치 정리",null,(s,e)=>ResetPositions());
+            menu.Items.Add("매크로 설정",null,(s,e)=>{DeskWindow owner;if(Windows.TryGetValue("macro",out owner))commands.Configure(owner);else{Enable("macro",true);commands.Configure(Windows["macro"]);}});
             menu.Items.Add("작업실 종료",null,(s,e)=>ExitThread());
             Tray=new NotifyIcon{Icon=Chick,Text="Mini Workstation Hub · 병아리 메뉴",ContextMenuStrip=menu,Visible=true};
             Tray.MouseClick+=(s,e)=>{if(e.Button==MouseButtons.Left)menu.Show(Cursor.Position);};
@@ -84,12 +87,13 @@ namespace MinaDesk {
         void ResetPositions(){foreach(string key in Keys){var r=Settings.Initial(key);Config.Panels[key].Remember(r);DeskWindow w;if(Windows.TryGetValue(key,out w)){w.WindowState=FormWindowState.Normal;w.Bounds=r;}}Save();}
         internal void RefreshSampling(){
             DeskWindow win;
+            commands.Sampling(!ending&&Windows.TryGetValue("macro",out win)&&win.Ready&&win.WindowState!=FormWindowState.Minimized);
             bool should=!ending&&Windows.TryGetValue("pc",out win)&&win.Ready&&win.WindowState!=FormWindowState.Minimized;
             if(should==sample.Enabled)return;
             telemetry.Reset();
             if(should){sample.Start();Windows["pc"].Send(telemetry.Sample());}else sample.Stop();
         }
-        object Snapshot(){return new {kind="state",mode,home=studio,active=active.ToArray(),enabled=Config.Panels.ToDictionary(p=>p.Key,p=>p.Value.Enabled)};}
+        object Snapshot(){return new {kind="state",mode,home=studio,macro=commands.Snapshot(),active=active.ToArray(),enabled=Config.Panels.ToDictionary(p=>p.Key,p=>p.Value.Enabled)};}
         void Broadcast(){var state=Snapshot();foreach(var w in Windows.Values)w.Send(state);}
         void AddLog(string source,string detail){
             if(!Config.Panels["log"].Enabled)return;
@@ -98,25 +102,32 @@ namespace MinaDesk {
             DeskWindow w;if(Windows.TryGetValue("log",out w))w.Send(new {kind="entry",item=entry});
         }
         static string StringValue(Dictionary<string,object> m,string k){object obj;return m.TryGetValue(k,out obj)?obj as string:null;}
-        internal void Receive(DeskWindow sender,string data){
+        internal async void Receive(DeskWindow sender,string data){
             DeskWindow current;
             if(data.Length>4096||!Windows.TryGetValue(sender.Key,out current)||current!=sender)return;
             Dictionary<string,object> msg;
             try{msg=Json.Deserialize<Dictionary<string,object>>(data);}catch(ArgumentException){return;}catch(InvalidOperationException){return;}
             if(msg==null)return;
             string type=StringValue(msg,"type"),id=StringValue(msg,"id");
+            if(id=="mic_mute")id="volume_mute";
             if(type=="ready"){sender.Ready=true;Ready(sender);return;}
             if(type=="clear"&&sender.Key=="log"){logs.Clear();sender.Send(new {kind="history",items=logs.ToArray()});return;}
+            if(type=="macro-settings"&&sender.Key=="macro"){commands.Configure(sender);return;}
             string text=null;
             if(type=="macro"&&sender.Key=="macro"&&MacroActions.Contains(id)){
+                if(MacroCommands.Supported.Contains(id)) {
+                    text=await commands.Execute(id,sender);
+                    if(ending)return;
+                    AddLog("PC 명령",text);Broadcast();sender.Send(new{kind="notice",text});return;
+                }
                 bool linked=id=="work_start"||id=="work_end"||id=="light_toggle"||id=="ac_toggle";
                 if(linked&&!Config.Panels["home"].Enabled){sender.Send(new {kind="notice",text="트레이에서 스마트홈을 먼저 켜세요."});return;}
                 if(id=="work_start"||id=="work_end"){
                     bool on=id=="work_start";mode=on?"업무":"퇴근";studio["lamp"]=studio["bar"]=studio["ac"]=on;
-                    if(on){studio["brightness"]=85;studio["kelvin"]=4500;studio["target"]=23;}else{active.Remove("record");active.Remove("media");}
+                    if(on){studio["brightness"]=85;studio["kelvin"]=4500;studio["target"]=23;}
                 }else if(id=="light_toggle"){bool on=!((bool)studio["lamp"]||(bool)studio["bar"]);studio["lamp"]=studio["bar"]=on;if(on&&(int)studio["brightness"]==0)studio["brightness"]=65;}
                 else if(id=="ac_toggle")studio["ac"]=!(bool)studio["ac"];
-                else if(id=="mic_mute"||id=="focus"||id=="record"||id=="media"){if(!active.Remove(id))active.Add(id);}
+                else if(id=="focus"){if(!active.Remove(id))active.Add(id);}
                 text=(StringValue(msg,"label")??id);if(text.Length>40)text=text.Substring(0,40);text+=" · 시연";
             }else if(type=="home"&&sender.Key=="home"){
                 if(id=="lamp"||id=="bar"||id=="ac"||id=="presence"||id=="door"){studio[id]=!(bool)studio[id];if(id=="lamp"&&(bool)studio[id]&&(int)studio["brightness"]==0)studio["brightness"]=65;}
@@ -135,7 +146,7 @@ namespace MinaDesk {
         protected override void ExitThreadCore(){
             if(!ending){ending=true;save.Stop();sample.Stop();instanceTimer.Stop();Save();Tray.Visible=false;
                 foreach(var w in Windows.Values.ToArray())w.Dispose();Windows.Clear();
-                Tray.Dispose();menu.Dispose();save.Dispose();sample.Dispose();instanceTimer.Dispose();Chick.Dispose();}
+                commands.Dispose();Tray.Dispose();menu.Dispose();save.Dispose();sample.Dispose();instanceTimer.Dispose();Chick.Dispose();}
             base.ExitThreadCore();
         }
     }

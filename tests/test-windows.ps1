@@ -10,14 +10,14 @@ $base=$bin.FullName
 $tester=Join-Path $base 'DesktopSmoke.exe'
 $csc=Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
 $files=Get-ChildItem -LiteralPath $src -Filter '*.cs' | ForEach-Object FullName
-& $csc /nologo /target:winexe /platform:x64 /codepage:65001 /main:DesktopSmoke "/out:$tester" "/win32manifest:$src/app.manifest" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll "/reference:$base/Microsoft.Web.WebView2.Core.dll" "/reference:$base/Microsoft.Web.WebView2.WinForms.dll" $files (Join-Path $PSScriptRoot 'DesktopSmoke.cs')
+& $csc /nologo /target:winexe /platform:x64 /codepage:65001 /main:DesktopSmoke "/out:$tester" "/win32manifest:$src/app.manifest" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll /reference:System.Security.dll "/reference:$base/Microsoft.Web.WebView2.Core.dll" "/reference:$base/Microsoft.Web.WebView2.WinForms.dll" $files (Join-Path $PSScriptRoot 'DesktopSmoke.cs')
 if ($LASTEXITCODE -ne 0) {throw 'Test build failed'}
 if ($CompileOnly) {Write-Output $tester;return}
 foreach ($phase in @('initial','reopen')) {
     $report=Join-Path $scratch.FullName ($phase+'.txt')
     $arguments=@(('"'+$profile.FullName+'"'),('"'+$report+'"'),('"'+$screens.FullName+'"'))
     if ($phase -eq 'reopen') {$arguments+='reopen'}
-    $process=Start-Process -FilePath $tester -ArgumentList $arguments -Wait -PassThru
+    $process=Start-Process -FilePath $tester -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
     if (Test-Path -LiteralPath $report) {Get-Content -Encoding UTF8 -LiteralPath $report}
     if ($process.ExitCode -ne 0) {throw "Windows test failed. See $report"}
 }

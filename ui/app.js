@@ -7,12 +7,12 @@ const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const send=(type,detail={})=>channel.postMessage({type,...detail});
 function loadScript(path){return new Promise((resolve,reject)=>{const tag=document.createElement('script');tag.src=path;tag.onload=resolve;tag.onerror=reject;document.head.append(tag);});}
 const definitions=[
- ['work_start','업무 시작','작업실','rocket'],['work_end','퇴근 · 잠금','시나리오','moon'],['mic_mute','마이크 음소거','마이크','mic'],['vscode','VS Code','앱 열기','code-2'],
+ ['work_start','업무 시작','작업실','rocket'],['work_end','퇴근 · 잠금','시나리오','moon'],['volume_mute','볼륨 음소거','PC 소리','volume-x'],['vscode','VS Code','프로젝트','code-2'],
  ['terminal','터미널','앱 열기','terminal-square'],['record','녹화 시작','OBS','video'],['media','재생 / 정지','미디어','play'],['screenshot','스크린샷','화면','camera'],
  ['focus','집중 모드','집중','bell-off'],['light_toggle','작업실 조명','조명','lightbulb'],['ac_toggle','냉방','온도','wind'],['pc_lock','PC 잠금','Windows','lock']
 ];
 const labels=new Map();let editing=false,selected=null,model=null,noticeTimer,chartHistory=[],lastLogId=0;
-function announce(text){$('notice').textContent=text;clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>$('notice').textContent='',2000);}
+function announce(text){$('notice').textContent=text;clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>$('notice').textContent='',6500);}
 function press(el){if(!reduced.matches)gsap.fromTo(el,{scale:.95,y:2},{scale:1,y:0,duration:.32,ease:'back.out(2.4)',overwrite:true,clearProps:'transform'});}
 function glyph(name){
  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
@@ -21,6 +21,7 @@ function glyph(name){
 }
 function setupKeys(){
  let cache={};try{cache=JSON.parse(localStorage.getItem('key-names')||'{}')||{}}catch{}
+ if(!cache.volume_mute&&cache.mic_mute&&cache.mic_mute!=='마이크 음소거')cache.volume_mute=cache.mic_mute;
  for(const [id,original,hint,icon] of definitions){
    labels.set(id,typeof cache[id]==='string'&&cache[id].trim()?cache[id].slice(0,24):original);
    const b=document.createElement('button');b.className='key';b.dataset.key=id;
@@ -30,17 +31,24 @@ function setupKeys(){
  $('edit').onclick=()=>{editing=!editing;$('keys').classList.toggle('editing',editing);$('edit').textContent=editing?'편집 완료':'이름 편집';if(model)paint(model);};
  $('apply').onclick=()=>{const label=$('key-name').value.trim().slice(0,24);if(!label)return;$('keys').querySelector('[data-key="'+selected+'"] b').textContent=label;labels.set(selected,label);try{localStorage.setItem('key-names',JSON.stringify(Object.fromEntries(labels)))}catch{}$('editor').close();};
  $('key-name').onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing)$('apply').click();};$('cancel').onclick=()=>$('editor').close();
+ $('macro-settings').onclick=()=>send('macro-settings');
 }
 function paint(state){
  model=state;const h=state.home;
  if(key==='macro'){
    $('mode').textContent=state.mode+' 모드';
    const lit=new Set(state.active);if(state.mode==='업무')lit.add('work_start');if(state.mode==='퇴근')lit.add('work_end');if(h.lamp||h.bar)lit.add('light_toggle');if(h.ac)lit.add('ac_toggle');
+   const native=state.macro||{},busy=new Set(native.busy||[]);
+   if(native.muted===true)lit.add('volume_mute');if(native.recording===true)lit.add('record');
    for(const b of $('keys').children){
      const id=b.dataset.key,active=lit.has(id);
      b.classList.toggle('on',active);
-     if(['work_start','work_end','mic_mute','record','media','focus','light_toggle','ac_toggle'].includes(id))b.setAttribute('aria-pressed',String(active));
-     b.disabled=!editing&&!state.enabled.home&&['work_start','work_end','light_toggle','ac_toggle'].includes(id);
+     if(['work_start','work_end','volume_mute','record','focus','light_toggle','ac_toggle'].includes(id))b.setAttribute('aria-pressed',String(active));
+     b.disabled=!editing&&(busy.has(id)||(!state.enabled.home&&['work_start','work_end','light_toggle','ac_toggle'].includes(id)));
+     b.setAttribute('aria-busy',String(busy.has(id)));
+     if(id==='volume_mute')b.querySelector('small').textContent=native.muted==null?'상태 확인 대기':native.muted?'음소거 중':'소리 켜짐';
+     if(id==='record')b.querySelector('small').textContent=native.recording==null?'OBS 미연결':native.recording?'녹화 중':'녹화 대기';
+     if(id==='record'&&labels.get(id)==='녹화 시작')b.querySelector('b').textContent=native.recording===true?'녹화 정지':'녹화 시작';
    }
  }
  if(key==='home'){
@@ -82,7 +90,7 @@ function sample(data){
 }
 async function boot(){
  if(!Object.hasOwn(panels,key))return;
- $('title').textContent=panels[key];$('badge').textContent={pc:'실제 측정',home:'기기 시연',macro:'명령 시연',log:'현재 세션'}[key];$(key).hidden=false;
+ $('title').textContent=panels[key];$('badge').textContent={pc:'실제 측정',home:'기기 시연',macro:'PC 명령',log:'현재 세션'}[key];$(key).hidden=false;
  if(key==='macro'){await loadScript('icons.js');setupKeys();}
  if(key==='pc')await loadScript('vendor/d3.min.js');
  if(key==='home'){setupHome();await loadScript('room.js');}

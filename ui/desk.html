@@ -2,8 +2,8 @@
 <header><img src="chick.webp" alt=""><div><small>MINA DESK</small><h1 id="title">작업실</h1></div><span id="badge" class="badge">준비 중</span></header>
 <main>
 <section id="macro" hidden>
- <div class="row section-label"><span>매크로 키패드</span><button id="edit">이름 편집</button></div><div id="keys" class="keys"></div>
- <div class="assistant"><img src="chick.webp" alt=""><div><b id="mode">작업 대기</b><small>PC 명령과 작업실 시나리오 시연</small></div></div>
+ <div class="row section-label"><span>매크로 키패드</span><div><button id="macro-settings">설정</button> <button id="edit">이름 편집</button></div></div><div id="keys" class="keys"></div>
+ <div class="assistant"><img src="chick.webp" alt=""><div><b id="mode">작업 대기</b><small>PC 명령 7개 · 작업실 시나리오 시연</small></div></div>
 </section>
 <section id="pc" hidden><div class="metrics"><div><small>CPU 사용률</small><div class="metric-value"><strong id="cpu">—</strong><svg class="meter" viewBox="0 0 44 44" aria-hidden="true"><circle class="meter-track" cx="22" cy="22" r="16" pathLength="100"/><circle id="cpu-arc" cx="22" cy="22" r="16" pathLength="100"/></svg></div><div class="track"><i id="cpu-bar"></i></div></div><div><small>메모리 사용률</small><div class="metric-value"><strong id="ram">—</strong><svg class="meter" viewBox="0 0 44 44" aria-hidden="true"><circle class="meter-track" cx="22" cy="22" r="16" pathLength="100"/><circle id="ram-arc" cx="22" cy="22" r="16" pathLength="100"/></svg></div><div class="track sage"><i id="ram-bar"></i></div></div></div>
  <div class="chart"><div class="row"><b>사용률 추이</b><small><i class="dot cpu"></i> CPU &nbsp; <i class="dot ram"></i> 메모리</small></div><svg id="plot" viewBox="0 0 360 110" role="img" aria-label="최근 CPU와 메모리 사용률"></svg><small id="interval">표본 수집 중</small></div>
