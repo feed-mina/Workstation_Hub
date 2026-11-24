@@ -1,6 +1,6 @@
 # PC 버튼 1단계 구현 상태
 
-2026-11-24, 공유된 ‘버튼 설계서와 1단계 만드는 방법’의 04~06번에 따라 0.2.0.0 개발 빌드를 만들었습니다. 설치된 Store 버전은 0.1.0.0입니다. 새 버전은 Store 제출 대기 상태입니다.
+2026-11-24, 공유된 ‘버튼 설계서와 1단계 만드는 방법’의 04~06번에 따라 0.2.0.0 개발 빌드를 만들었습니다. 설치된 Store 버전은 0.1.0.0입니다. 새 버전은 Submission 2로 Store에 제출해 인증 심사 중입니다.
 
 ## 구현
 
@@ -25,7 +25,7 @@
 | MakeAppx 패키지 생성과 구조 검증 | 통과. 0.2.0.0 x64 |
 | 네이티브 창 회귀 시험 실행 | 시작 전 차단. Windows가 DesktopSmoke.exe를 애플리케이션 제어 정책으로 차단함 |
 | PC 버튼 7개 실제 동작과 OBS 녹화 파일 확인 | 미검증 |
-| Store 0.2 업로드·심사·설치 | 미완료. Partner Center 로그인 안내 후 화면 조작이 Esc 키로 중지됨 |
+| Store 0.2 업로드·심사·설치 | 0.2.0.0 업로드·검증·심사 제출 완료. Submission 2 인증 중. 설치와 실기 검증은 승인 대기 |
 
 로컬 MSIX의 SHA-256은 48FCAE06DC388CCF730B818B034E106E90331D7E8834ADB555E01E981CEDF398입니다. 이 파일은 Store 제출용 미서명 패키지입니다. 실제 설치와 실행 검증은 Store 서명본을 받은 뒤 진행해야 합니다.
 
@@ -37,3 +37,7 @@
 4. 네 창의 개별 이동·최소화·작업표시줄 복원과 병아리 메뉴 전환을 다시 확인합니다.
 
 참고한 공식 문서는 [OBS WebSocket 5.x 프로토콜](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md)과 [Windows 출력 장치 음량 API](https://learn.microsoft.com/en-us/windows/win32/api/endpointvolume/nn-endpointvolume-iaudioendpointvolume)입니다.
+
+## 후속 진행
+
+사용자는 0.2의 Store 심사 통과 후 기존 앱을 교체하기로 선택했습니다. 현재 승인된 0.1을 사용하는 동안 0.2 패키지와 한국어 설명, 권한 사용 설명을 갱신해 제출했습니다. 인증은 보통 몇 시간, 경우에 따라 영업일 최대 3일이 걸릴 수 있다는 Store 안내를 확인했습니다. 실제 승인과 설치 완료는 아직 확인하지 않았습니다.
