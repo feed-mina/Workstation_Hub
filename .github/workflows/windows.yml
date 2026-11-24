@@ -1,0 +1,25 @@
+name: Windows verification
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smart-home:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Frontend state regression
+        run: |
+          node tests/macro-ui.cjs
+          node tests/smart-ui.cjs
+      - name: Install external media tool for fixtures
+        run: choco install ffmpeg --yes --no-progress
+      - name: Smart-home protocol, recovery and media tests
+        shell: pwsh
+        run: ./tests/test-smart.ps1 -Ffmpeg (Get-Command ffmpeg.exe).Source
+      - name: Compile native window regression harness
+        shell: pwsh
+        run: ./tests/test-windows.ps1 -CompileOnly

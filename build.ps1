@@ -15,9 +15,10 @@ if (-not $SdkPath) {
 $dest=New-Item -ItemType Directory -Path $Destination -Force
 $csc=Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
 $libs=Join-Path $SdkPath 'lib/net462'
+$frameworkReferences=@('/reference:System.Net.Http.dll','/reference:System.Security.dll')
 $files=Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.cs' | ForEach-Object FullName
 $exe=Join-Path $dest.FullName 'WorkstationHub.exe'
-& $csc /nologo /target:winexe /platform:x64 /optimize+ /codepage:65001 "/out:$exe" "/win32icon:$PSScriptRoot/chick.ico" "/win32manifest:$PSScriptRoot/app.manifest" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll /reference:System.Security.dll "/reference:$libs/Microsoft.Web.WebView2.Core.dll" "/reference:$libs/Microsoft.Web.WebView2.WinForms.dll" $files
+& $csc /nologo /target:winexe /platform:x64 /optimize+ /codepage:65001 "/out:$exe" "/win32icon:$PSScriptRoot/chick.ico" "/win32manifest:$PSScriptRoot/app.manifest" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll $frameworkReferences "/reference:$libs/Microsoft.Web.WebView2.Core.dll" "/reference:$libs/Microsoft.Web.WebView2.WinForms.dll" $files
 if ($LASTEXITCODE -ne 0){throw 'Compilation failed'}
 foreach($f in @('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll')){Copy-Item -LiteralPath (Join-Path $libs $f) -Destination $dest.FullName -Force}
 Copy-Item -LiteralPath (Join-Path $SdkPath 'runtimes/win-x64/native/WebView2Loader.dll') -Destination $dest.FullName -Force

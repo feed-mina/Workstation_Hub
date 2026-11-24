@@ -25,6 +25,7 @@ namespace MinaDesk {
         readonly Timer save=new Timer{Interval=350}, sample=new Timer{Interval=1500}, instanceTimer=new Timer{Interval=500};
         readonly Telemetry telemetry=new Telemetry();
         readonly MacroCommands commands;
+        readonly SmartHome smart;
         readonly Queue<object> logs=new Queue<object>();
         readonly HashSet<string> active=new HashSet<string>();
         readonly Dictionary<string,object> studio=new Dictionary<string,object>{{"lamp",true},{"brightness",80},{"bar",true},{"kelvin",4500},{"ac",false},{"target",23},{"presence",true},{"door",false}};
@@ -39,6 +40,7 @@ namespace MinaDesk {
             DataDir=data;Directory.CreateDirectory(data);
             file=Path.Combine(data,"windows.json");Config=Settings.Load(file);
             commands=new MacroCommands(data,()=>{if(!ending)Broadcast();});
+            smart=new SmartHome(data,()=>{if(!ending)Broadcast();},AddLog);
             Chick=new Icon(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"chick.ico"));
             menu=new ContextMenuStrip{ShowCheckMargin=true,ShowImageMargin=false};
             var label=menu.Items.Add("MINA DESK   ·   기능 켜기 / 끄기");label.Enabled=false;
@@ -51,6 +53,7 @@ namespace MinaDesk {
             menu.Items.Add("켜진 창 모두 복원",null,(s,e)=>Restore(false));
             menu.Items.Add("창 위치 정리",null,(s,e)=>ResetPositions());
             menu.Items.Add("매크로 설정",null,(s,e)=>{DeskWindow owner;if(Windows.TryGetValue("macro",out owner))commands.Configure(owner);else{Enable("macro",true);commands.Configure(Windows["macro"]);}});
+            menu.Items.Add("스마트홈 연결",null,(s,e)=>{if(!Config.Panels["home"].Enabled)Enable("home",true);smart.Configure(Windows["home"]);});
             menu.Items.Add("작업실 종료",null,(s,e)=>ExitThread());
             Tray=new NotifyIcon{Icon=Chick,Text="Mini Workstation Hub · 병아리 메뉴",ContextMenuStrip=menu,Visible=true};
             Tray.MouseClick+=(s,e)=>{if(e.Button==MouseButtons.Left)menu.Show(Cursor.Position);};
@@ -93,7 +96,7 @@ namespace MinaDesk {
             telemetry.Reset();
             if(should){sample.Start();Windows["pc"].Send(telemetry.Sample());}else sample.Stop();
         }
-        object Snapshot(){return new {kind="state",mode,home=studio,macro=commands.Snapshot(),active=active.ToArray(),enabled=Config.Panels.ToDictionary(p=>p.Key,p=>p.Value.Enabled)};}
+        object Snapshot(){return new {kind="state",mode,home=studio,smart=smart.Snapshot(),macro=commands.Snapshot(),active=active.ToArray(),enabled=Config.Panels.ToDictionary(p=>p.Key,p=>p.Value.Enabled)};}
         void Broadcast(){var state=Snapshot();foreach(var w in Windows.Values)w.Send(state);}
         void AddLog(string source,string detail){
             if(!Config.Panels["log"].Enabled)return;
@@ -113,6 +116,14 @@ namespace MinaDesk {
             if(type=="ready"){sender.Ready=true;Ready(sender);return;}
             if(type=="clear"&&sender.Key=="log"){logs.Clear();sender.Send(new {kind="history",items=logs.ToArray()});return;}
             if(type=="macro-settings"&&sender.Key=="macro"){commands.Configure(sender);return;}
+            if(type=="smart-settings"&&sender.Key=="home"){smart.Configure(sender);return;}
+            if(type=="smart"&&sender.Key=="home") {
+                string result;
+                try { result=await smart.Execute(sender,StringValue(msg,"action"),StringValue(msg,"roomId"),StringValue(msg,"itemId")); }
+                catch(Exception ex) { result="스마트홈 확인 필요 · "+ex.Message; }
+                if(!ending) { AddLog("스마트홈",result);Broadcast();sender.Send(new{kind="notice",text=result}); }
+                return;
+            }
             string text=null;
             if(type=="macro"&&sender.Key=="macro"&&MacroActions.Contains(id)){
                 if(MacroCommands.Supported.Contains(id)) {
@@ -146,7 +157,7 @@ namespace MinaDesk {
         protected override void ExitThreadCore(){
             if(!ending){ending=true;save.Stop();sample.Stop();instanceTimer.Stop();Save();Tray.Visible=false;
                 foreach(var w in Windows.Values.ToArray())w.Dispose();Windows.Clear();
-                commands.Dispose();Tray.Dispose();menu.Dispose();save.Dispose();sample.Dispose();instanceTimer.Dispose();Chick.Dispose();}
+                smart.Dispose();commands.Dispose();Tray.Dispose();menu.Dispose();save.Dispose();sample.Dispose();instanceTimer.Dispose();Chick.Dispose();}
             base.ExitThreadCore();
         }
     }

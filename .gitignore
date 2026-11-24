@@ -2,3 +2,7 @@
 /dist/
 **/macros.json
 **/windows.json
+**/smart-home.json*
+**/archive-jobs.json*
+**/archive-receipts.ndjson*
+**/client_secret*.json

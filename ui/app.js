@@ -52,6 +52,7 @@ function paint(state){
    }
  }
  if(key==='home'){
+   if(window.smartHomeView)window.smartHomeView.render(state.smart);
    for(const b of document.querySelectorAll('[data-home]')){const id=b.dataset.home;b.setAttribute('aria-pressed',String(h[id]));b.textContent=id==='presence'?(h.presence?'재실':'부재'):id==='door'?(h.door?'방문 열림':'방문 닫힘'):(h[id]?'켜짐':'꺼짐');}
    $('brightness').value=h.lamp?h.brightness:0;$('lamp-pct').textContent='밝기 '+$('brightness').value+'%';$('target').textContent=h.target+'°C';
    for(const b of document.querySelectorAll('[data-k]'))b.setAttribute('aria-pressed',String(h.bar&&h.kelvin===Number(b.dataset.k)));
@@ -93,7 +94,7 @@ async function boot(){
  $('title').textContent=panels[key];$('badge').textContent={pc:'실제 측정',home:'기기 시연',macro:'PC 명령',log:'현재 세션'}[key];$(key).hidden=false;
  if(key==='macro'){await loadScript('icons.js');setupKeys();}
  if(key==='pc')await loadScript('vendor/d3.min.js');
- if(key==='home'){setupHome();await loadScript('room.js');}
+ if(key==='home'){setupHome();await loadScript('room.js');await loadScript('smart-home.js');$('badge').textContent='방별 연결';}
  if(key==='log')$('clear').onclick=()=>send('clear');
  channel.addEventListener('message',({data})=>{
    if(data.kind==='state')paint(data);
