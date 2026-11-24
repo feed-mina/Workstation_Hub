@@ -1,6 +1,8 @@
 # 0.3 비공개 Store 테스트 제출 기록
 
-2026-11-24 Asia/Seoul에 Partner Center에서 직접 확인했습니다.
+2026-11-24 Asia/Seoul에 Partner Center에서 직접 확인한 최초 제출 기록입니다. **이후 0.3 심사 통과와 Store 설치·UI Automation 검증을 완료했습니다. [최신 결과](store03-verified-20261124.md)**
+
+아래 표와 순서는 제출 당시 상태를 보존합니다.
 
 | 항목 | 확인 결과 |
 | --- | --- |

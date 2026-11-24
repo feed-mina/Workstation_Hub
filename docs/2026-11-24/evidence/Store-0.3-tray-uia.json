@@ -1,0 +1,95 @@
+{
+  "version": "0.3.0.0",
+  "method": "Windows UI Automation Invoke/Legacy patterns",
+  "trials": [
+    {
+      "panel": "macro",
+      "title": "매크로 패드",
+      "off_then_on": true,
+      "checkmark_off_then_on": true,
+      "other_three_unchanged": true,
+      "old_hwnd": 1575992,
+      "new_hwnd": 40175372
+    },
+    {
+      "panel": "pc",
+      "title": "PC 성능",
+      "off_then_on": true,
+      "checkmark_off_then_on": true,
+      "other_three_unchanged": true,
+      "old_hwnd": 3081732,
+      "new_hwnd": 2821074
+    },
+    {
+      "panel": "home",
+      "title": "스마트홈",
+      "off_then_on": true,
+      "checkmark_off_then_on": true,
+      "other_three_unchanged": true,
+      "old_hwnd": 525788,
+      "new_hwnd": 30607912
+    },
+    {
+      "panel": "log",
+      "title": "작업 기록",
+      "off_then_on": true,
+      "checkmark_off_then_on": true,
+      "other_three_unchanged": true,
+      "old_hwnd": 2491544,
+      "new_hwnd": 920198
+    }
+  ],
+  "finalChecks": {
+    "macro": true,
+    "pc": true,
+    "home": true,
+    "log": true
+  },
+  "finalWindows": {
+    "log": {
+      "hwnd": 920198,
+      "pid": 19628,
+      "minimized": false,
+      "rect": [
+        13,
+        479,
+        1360,
+        712
+      ]
+    },
+    "home": {
+      "hwnd": 30607912,
+      "pid": 19628,
+      "minimized": false,
+      "rect": [
+        899,
+        31,
+        1342,
+        491
+      ]
+    },
+    "pc": {
+      "hwnd": 2821074,
+      "pid": 19628,
+      "minimized": false,
+      "rect": [
+        477,
+        27,
+        920,
+        487
+      ]
+    },
+    "macro": {
+      "hwnd": 40175372,
+      "pid": 19628,
+      "minimized": false,
+      "rect": [
+        81,
+        33,
+        524,
+        493
+      ]
+    }
+  },
+  "passed": true
+}

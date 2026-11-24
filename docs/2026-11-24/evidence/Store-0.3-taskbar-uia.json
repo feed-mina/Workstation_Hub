@@ -1,0 +1,82 @@
+{
+  "version": "0.3.0.0",
+  "method": "taskbar jump-list app activation",
+  "individualThumbnailSelectionTested": false,
+  "trials": [
+    {
+      "panel": "macro",
+      "minimized": true,
+      "restoredThroughActualTaskbar": true,
+      "otherThreeUnchanged": true,
+      "boundsPreserved": true
+    },
+    {
+      "panel": "pc",
+      "minimized": true,
+      "restoredThroughActualTaskbar": true,
+      "otherThreeUnchanged": true,
+      "boundsPreserved": true
+    },
+    {
+      "panel": "home",
+      "minimized": true,
+      "restoredThroughActualTaskbar": true,
+      "otherThreeUnchanged": true,
+      "boundsPreserved": true
+    },
+    {
+      "panel": "log",
+      "minimized": true,
+      "restoredThroughActualTaskbar": true,
+      "otherThreeUnchanged": true,
+      "boundsPreserved": true
+    }
+  ],
+  "passed": true,
+  "finalWindows": {
+    "log": {
+      "hwnd": 920198,
+      "pid": 19628,
+      "minimized": false,
+      "rect": [
+        13,
+        479,
+        1360,
+        712
+      ]
+    },
+    "home": {
+      "hwnd": 30607912,
+      "pid": 19628,
+      "minimized": false,
+      "rect": [
+        899,
+        31,
+        1342,
+        491
+      ]
+    },
+    "pc": {
+      "hwnd": 2821074,
+      "pid": 19628,
+      "minimized": false,
+      "rect": [
+        477,
+        27,
+        920,
+        487
+      ]
+    },
+    "macro": {
+      "hwnd": 40175372,
+      "pid": 19628,
+      "minimized": false,
+      "rect": [
+        81,
+        33,
+        524,
+        493
+      ]
+    }
+  }
+}

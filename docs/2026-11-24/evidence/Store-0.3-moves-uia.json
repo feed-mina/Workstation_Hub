@@ -1,0 +1,73 @@
+{
+  "version": "0.3.0.0",
+  "method": "Windows UI Automation TransformPattern",
+  "moves": [
+    {
+      "panel": "macro",
+      "before": [
+        77,
+        31,
+        520,
+        491
+      ],
+      "after": [
+        81,
+        33,
+        524,
+        493
+      ],
+      "otherThreeUnchanged": true
+    },
+    {
+      "panel": "pc",
+      "before": [
+        473,
+        25,
+        916,
+        485
+      ],
+      "after": [
+        477,
+        27,
+        920,
+        487
+      ],
+      "otherThreeUnchanged": true
+    },
+    {
+      "panel": "home",
+      "before": [
+        895,
+        29,
+        1338,
+        489
+      ],
+      "after": [
+        899,
+        31,
+        1342,
+        491
+      ],
+      "otherThreeUnchanged": true
+    },
+    {
+      "panel": "log",
+      "before": [
+        9,
+        477,
+        1356,
+        710
+      ],
+      "after": [
+        13,
+        479,
+        1360,
+        712
+      ],
+      "otherThreeUnchanged": true
+    }
+  ],
+  "independentMovesPassed": true,
+  "individualThumbnailSelectionTested": false,
+  "excludedAttempt": "Earlier thumbnail-label matching timed out; not counted as a passing restore test."
+}
