@@ -15,14 +15,13 @@ namespace MinaDesk {
         readonly Uri address;
         Rectangle? beforeSkills;
         const string Host="workstation-hub.invalid";
-        const int WM_DWMCOLORIZATIONCOLORCHANGED=0x0320;
         [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr handle,int attribute,ref int value,int size);
         internal DeskWindow(Hub context,string key,string title,Rectangle bounds){
             hub=context;Key=key;address=new Uri("https://"+Host+"/desk.html?panel="+key);
             Text=title+" · Mini Workstation Hub";Name="WorkstationHub-"+key;Icon=hub.Chick;
             StartPosition=FormStartPosition.Manual;ShowInTaskbar=true;FormBorderStyle=FormBorderStyle.Sizable;
-            MinimizeBox=true;MaximizeBox=true;BackColor=Color.FromArgb(15,46,38);
-            MinimumSize=new Size(Math.Min(300,bounds.Width),Math.Min(210,bounds.Height));Bounds=bounds;
+            MinimizeBox=true;MaximizeBox=true;ApplyTheme(hub.Config.Theme);
+            MinimumSize=new Size(280,153);Bounds=bounds;
             Shown+=(s,e)=>InitializeBrowser();
             ResizeEnd+=(s,e)=>RememberBounds();
             Move+=(s,e)=>RememberBounds();
@@ -41,7 +40,14 @@ namespace MinaDesk {
         }
         protected override void OnHandleCreated(EventArgs e){
             base.OnHandleCreated(e);
-            int dark=1,cap=0x00334418,ink=0x00daf9eb;
+            ApplyTheme(hub.Config.Theme);
+        }
+        internal void ApplyTheme(string theme){
+            bool neon=theme=="neon";
+            BackColor=neon?Color.FromArgb(8,22,38):Color.FromArgb(15,46,38);
+            if(Browser!=null)Browser.DefaultBackgroundColor=BackColor;
+            if(!IsHandleCreated)return;
+            int dark=1,cap=neon?0x003b2810:0x00334418,ink=neon?0x00fff7ee:0x00daf9eb;
             DwmSetWindowAttribute(Handle,20,ref dark,4);DwmSetWindowAttribute(Handle,35,ref cap,4);DwmSetWindowAttribute(Handle,36,ref ink,4);
         }
         async void InitializeBrowser(){

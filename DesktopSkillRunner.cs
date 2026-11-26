@@ -31,6 +31,7 @@ namespace MinaDesk {
             return link;
         }
         internal static void Open(string target,string folder) { Launch(Link(target,folder,null)); }
+        internal static void OpenDraft(string folder,string prompt) { Launch(Link("gpt",folder,prompt)); }
         static void Launch(string link) {
             using(var process=Process.Start(new ProcessStartInfo(link){UseShellExecute=true})) { }
         }

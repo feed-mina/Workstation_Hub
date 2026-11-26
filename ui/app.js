@@ -1,5 +1,5 @@
 'use strict';
-const panels={macro:'매크로 패드',pc:'PC 성능',home:'스마트홈',log:'작업 기록'};
+const panels={macro:'매크로 패드',pc:'PC 성능',home:'스마트홈',log:'작업 기록',dev:'개발자 컨트롤',widgets:'보조 위젯'};
 const key=new URLSearchParams(location.search).get('panel');
 const $=id=>document.getElementById(id);
 const channel=window.chrome.webview;
@@ -107,12 +107,17 @@ function sample(data){
 }
 async function boot(){
  if(!Object.hasOwn(panels,key))return;
- $('title').textContent=panels[key];$('badge').textContent={pc:'실제 측정',home:'기기 시연',macro:'PC 명령',log:'이 PC'}[key];$(key).hidden=false;
- if(key==='macro'){await loadScript('icons.js');await loadScript('skill-descriptions.ko.js');await loadScript('skills.js');await loadScript('projects.js');setupKeys();window.projectSkills.setup();window.projectConnections.setup();}
- if(key==='pc')await loadScript('vendor/d3.min.js');
+ $('title').textContent=panels[key];$('badge').textContent={pc:'실제 측정',home:'기기 시연',macro:'PC 명령',log:'이 PC',dev:'개발 도구',widgets:'이 PC'}[key];$(key).hidden=false;
+ if(key==='macro'){await loadScript('icons.js');await loadScript('skill-descriptions.ko.js');await loadScript('skills.js');await loadScript('projects.js');setupKeys();window.projectSkills.setup();window.projectConnections.setup();$('developer-show').onclick=()=>send('developer-show');}
+ if(key==='pc'){
+   await loadScript('vendor/d3.min.js');
+   $('gpu-details').addEventListener('toggle',()=>send('gpu-watch',{id:$('gpu-details').open?'on':'off'}));
+ }
+ if(key==='dev'||key==='widgets'){await loadScript('developer.js');window.developerView.setup(key,send);}
  if(key==='home'){setupHome();await loadScript('room.js');await loadScript('smart-home.js');$('badge').textContent='방별 연결';}
  if(key==='log')$('history-settings').onclick=()=>send('history-settings');
  channel.addEventListener('message',({data})=>{
+   if(data.kind==='state'||data.kind==='theme')document.body.classList.toggle('neon',data.theme==='neon');
    if(data.kind==='state')paint(data);
    if(data.kind==='sample'&&key==='pc')sample(data);
    if(data.kind==='history'&&key==='log'){
@@ -121,6 +126,18 @@ async function boot(){
      if(signature!==lastLogId){lastLogId=signature;$('history').replaceChildren();$('count').textContent='기록 없음';data.items.forEach(addLog);}
    }
    if(data.kind==='notice')announce(data.text);
+   if(data.kind==='gpu-sample'&&key==='pc'){
+     $('gpu-load').textContent=data.load==null?'—':Math.round(data.load)+'%';
+     const gb=value=>value==null?'—':value.toFixed(2)+' GiB';
+     $('gpu-memory').textContent=gb(data.dedicated)+' / '+gb(data.shared);
+     $('gpu-status').textContent=data.status;
+   }
+   if(data.kind==='macro-handoff'&&key==='macro'){
+     if(data.view==='projects'&&!$('projects-dialog').open)window.projectConnections.open();
+     if(data.view==='skills'&&!$('skills-dialog').open)window.projectSkills.open();
+     if(data.view==='project-settings'&&!$('project-settings-dialog').open)$('project-settings').click();
+   }
+   if(key==='dev'||key==='widgets')window.developerView.receive(data);
    if(data.kind==='skills-result'&&key==='macro'){window.projectSkills.result(data.action);window.projectConnections.result(data.action);}
  });
  send('ready');

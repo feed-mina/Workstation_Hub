@@ -19,6 +19,12 @@ namespace MinaDesk {
         SmartSettings config;
         bool polling,configuring,disposed,executing;
         string error="";
+        internal string DashboardAddress {
+            get {
+                try {return String.IsNullOrWhiteSpace(config.HaTokenProtected)?null:HomeAssistantClient.BaseAddress(config.HaAddress).AbsoluteUri;}
+                catch(ArgumentException){return null;}catch(UriFormatException){return null;}
+            }
+        }
         internal SmartHome(string data,Action stateChanged,Action<string,string> writeLog) {
             changed=stateChanged;log=writeLog;configFile=Path.Combine(data,"smart-home.json");
             try { config=LocalData.Read(configFile,()=>SmartSettings.New(data)); }
