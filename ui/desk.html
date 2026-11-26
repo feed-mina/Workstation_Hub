@@ -3,7 +3,8 @@
 <main>
 <section id="macro" hidden>
  <div class="row section-label"><span>매크로 키패드</span><div><button id="macro-settings">설정</button> <button id="edit">이름 편집</button></div></div>
- <div class="project-bar"><label for="project-select">프로젝트</label><select id="project-select" aria-label="현재 프로젝트"><option value="">프로젝트 추가</option></select><button id="project-add" title="프로젝트 폴더 추가" aria-label="프로젝트 폴더 추가">＋</button></div>
+ <div class="project-bar"><label for="project-select">프로젝트</label><select id="project-select" aria-label="현재 프로젝트"><option value="">프로젝트 추가</option></select><button id="project-add" title="프로젝트 추가" aria-label="프로젝트 추가">＋</button><button id="project-settings" title="프로젝트 설정" aria-label="프로젝트 설정">설정</button></div>
+ <p id="project-context" class="skill-project-hint"></p>
  <div id="keys" class="keys"></div>
  <div class="row skill-section-title"><b>프로젝트 스킬</b><button id="manage-skills">스킬 관리 ＋</button></div>
  <p id="skill-empty" class="empty">스킬 버튼에서 설치된 스킬을 골라 등록하세요.</p><div id="project-skill-keys" class="keys"></div>
@@ -35,13 +36,43 @@
   <section class="skill-detail" aria-label="스킬 버튼 설정"><span id="skill-source" class="skill-source">스킬을 선택하세요</span><h3 id="skill-name">버튼 하나로 AI에 전달</h3><p id="skill-description">왼쪽에서 설치된 스킬을 고르면 이 프로젝트의 버튼으로 저장할 수 있어요.</p>
    <label for="skill-label">버튼 이름</label><input id="skill-label" maxlength="40" placeholder="예: 쉬운 수정 가이드">
    <label for="skill-target">실행할 데스크톱 앱</label><select id="skill-target"><option value="gpt">GPT 데스크톱</option><option value="claude">Claude 데스크톱 · Code</option></select>
+   <label for="skill-scope">저장 범위</label><select id="skill-scope"><option value="common">프로젝트 공통 버튼</option><option value="location">이 PC · 현재 실행 위치 예외</option></select>
+   <label for="skill-reference">클라우드에서 읽을 스킬 문서 <small>선택 사항 · 저장소 안의 상대 경로</small></label><input id="skill-reference" maxlength="500" placeholder="예: skills/fix-guide/SKILL.md">
    <label for="skill-instruction">이 버튼으로 요청할 일 <small>선택 사항 · 프로젝트마다 다르게 저장</small></label><textarea id="skill-instruction" rows="4" maxlength="4000" placeholder="예: 현재 변경 사항을 검토하고 HTML 수정 가이드를 만들어 줘"></textarea>
-   <p class="skill-handoff-note">선택한 프로젝트에서 새 작업을 엽니다. 앱에서 요청문과 전송 버튼을 확인하면 자동 전송합니다. 폴더 접근 승인 등이 나오면 앱에서 직접 확인해 주세요.</p>
+   <p class="skill-handoff-note">로컬 코딩은 설치된 스킬을 확인해 전달합니다. 클라우드·대화 모드는 요청 준비 화면에서 AI 앱을 열고 저장소·환경을 확인한 뒤 직접 전송합니다. 개인 스킬 파일은 자동 업로드하지 않습니다.</p>
    <button type="button" id="skill-save" class="skill-primary">이 프로젝트에 버튼 추가</button><button type="button" id="skill-new" hidden>새 버튼으로 추가하기</button>
   </section>
  </div>
  <p id="skills-dialog-status" class="skill-status" role="status" aria-live="polite"></p>
  <div class="skill-saved-heading"><b>이 프로젝트에 등록한 버튼</b><small>실행 · 수정 · 삭제</small></div><div id="skill-saved-list"></div>
+</dialog>
+<dialog id="projects-dialog" aria-labelledby="projects-title">
+ <div class="row project-dialog-head"><div><small>PROJECT CONNECTION</small><h2 id="projects-title">프로젝트 추가</h2></div><button id="projects-close" aria-label="프로젝트 추가 닫기">닫기</button></div>
+ <div class="segments"><button id="project-github-tab" aria-pressed="true">GitHub에서 추가</button><button id="project-local-tab" aria-pressed="false">로컬 폴더에서 추가</button></div>
+ <section id="github-project-pane">
+  <p>로컬 폴더 없이 GitHub 프로젝트를 등록합니다. 접근 권한이 있는 Public·Private 저장소를 모두 조회합니다.</p>
+  <div class="project-account"><b id="github-account">GitHub 연결 전</b><div class="project-actions"><button id="github-login">GitHub 로그인</button><button id="github-refresh">목록 새로고침</button><button id="github-logout">연결 해제</button></div></div>
+  <div id="github-auth-note" class="project-callout" hidden><p>브라우저에서 본인 계정으로 로그인하고 아래 코드를 확인해 주세요.</p><strong id="github-auth-code"></strong><p>공식 GitHub CLI 인증입니다. 비밀번호는 Hub에 입력하지 않습니다.</p><button id="github-device-page">인증 페이지 다시 열기</button><button id="github-cancel">로그인 취소</button></div>
+  <div class="project-callout"><b>내 PC끼리 선택한 프로젝트만 공유</b><p id="github-share-hint">전용 비공개 설정 저장소를 연결하면 목록과 공통 스킬 버튼을 공유할 수 있습니다. 폴더 경로·실행 위치·위치 예외·로그인 정보는 이 PC에 보관합니다.</p><button id="github-share-connect">비공개 공유 저장소 연결·만들기</button><button id="github-sync">지금 동기화</button></div>
+  <label class="sr-only" for="github-search">저장소 검색</label><input id="github-search" type="search" placeholder="저장소 이름 검색" autocomplete="off">
+  <p id="github-repo-count" aria-live="polite"></p><div id="github-repositories" class="github-repositories"></div>
+  <p class="skill-handoff-note">조직의 저장소가 보이지 않으면 GitHub의 조직 SSO·OAuth 앱 승인과 계정 권한을 확인한 뒤 새로고침하세요.</p>
+  <div class="project-dialog-footer"><b id="github-selected">선택 0개</b><button id="github-register" class="skill-primary">프로젝트 등록</button></div>
+ </section>
+ <section id="local-project-pane" hidden><h3>이 PC의 폴더로 시작하기</h3><p>기존처럼 폴더를 선택해 로컬 프로젝트를 등록합니다. 경로와 실행 설정은 이 PC에 저장합니다.</p><button id="local-project-add">폴더 찾아보기</button></section>
+ <p id="project-dialog-status" class="skill-status" role="status" aria-live="polite"></p>
+</dialog>
+<dialog id="project-settings-dialog" aria-labelledby="project-settings-title">
+ <div class="row"><h2 id="project-settings-title">프로젝트 설정</h2><button id="project-settings-close">닫기</button></div>
+ <p id="project-settings-source" class="skill-project-hint"></p>
+ <label for="project-location">실행 위치</label><select id="project-location"><option value="cloud">☁ 클라우드</option><option value="local">이 PC의 로컬</option></select>
+ <p id="project-local-path" class="skill-project-hint"></p><button id="project-bind">같은 저장소의 로컬 폴더 연결</button>
+ <label for="project-task-kind">작업 종류</label><select id="project-task-kind"><option value="code">코딩 · PR 작업</option><option value="conversation">GitHub 자료로 대화 · 검토</option></select>
+ <label class="project-check"><input type="checkbox" id="project-shared">이 프로젝트의 목록·공통 스킬 버튼을 내 다른 PC와 공유</label>
+ <p>클라우드 선택은 실행 준비 설정입니다. AI 앱에서 같은 저장소·환경을 선택하고 요청을 확인해야 작업이 시작됩니다. 로컬 폴더 연결은 자동 복제·Push·Pull을 실행하지 않습니다.</p>
+ <div id="project-conflict" class="project-callout" hidden><b>다른 PC의 설정과 충돌했습니다.</b><p>원격 설정으로 바꾸거나, 이 PC의 공통 버튼 구성을 유지할 수 있습니다. 로컬 경로와 위치 예외는 보존합니다.</p><button id="project-conflict-remote">다른 PC 설정 받기</button><button id="project-conflict-local">이 PC 설정 사용</button></div>
+ <div class="project-actions"><button id="project-config-save" class="skill-primary">프로젝트 설정 저장</button><button id="project-open-app">선택한 AI 앱에서 작업 준비</button></div>
+ <p id="project-settings-status" class="skill-status" role="status" aria-live="polite"></p>
 </dialog>
 <dialog id="room-dialog"><div class="row"><b>작업실 배치 · 시연</b><button id="close-room">닫기</button></div><div id="room-stage"><div id="room-fallback" hidden>3D 표시를 사용할 수 없어요. 아래에서 기기를 조작할 수 있습니다.</div></div><div class="segments"><button id="room-lamp"></button><button id="room-ac"></button></div><div class="row"><button id="room-view-left">↶ 왼쪽</button><button id="room-view-right">오른쪽 ↷</button></div><small id="room-status"></small></dialog>
 <script src="vendor/gsap.min.js"></script><script src="app.js"></script></body></html>

@@ -29,6 +29,7 @@ namespace MinaDesk {
         readonly SmartHome smart;
         readonly WorkHistory history;
         readonly Timer historyTimer=new Timer{Interval=5000};
+        readonly Timer projectSyncTimer=new Timer{Interval=60000};
         WorkEntry[] sharedHistory=new WorkEntry[0];
         string publishedId, historyStatus="이 PC", historyError;
         bool historySyncing;
@@ -74,6 +75,7 @@ namespace MinaDesk {
             foreach(var key in Keys)if(Config.Panels[key].Enabled)Open(key);
             AddLog("작업실","앱을 시작했습니다.");
             historyTimer.Tick+=(s,e)=>SyncHistory();historyTimer.Start();SyncHistory();
+            projectSyncTimer.Tick+=async(s,e)=>await skills.SyncBackground();projectSyncTimer.Start();
         }
         internal void Remember(string key,Rectangle bounds) {if(ending)return;Config.Panels[key].Remember(bounds);save.Stop();save.Start();}
         void Save(){try{Config.Save(file);}catch(IOException){Tray.Text="Mini Workstation Hub · 창 설정 저장 실패";}catch(UnauthorizedAccessException){Tray.Text="Mini Workstation Hub · 창 설정 저장 권한 확인";}}
@@ -170,7 +172,9 @@ namespace MinaDesk {
             if(id=="mic_mute")id="volume_mute";
             if(type=="ready"){sender.Ready=true;Ready(sender);return;}
             if(type=="skills-close" && sender.Key=="macro") { sender.SkillLibrary(false);return; }
-            if(sender.Key=="macro" && (type=="skills-open" || type=="skills-refresh" || type=="skill-project-add" || type=="skill-project-select" || type=="skill-start-apps" || type=="skill-save" || type=="skill-remove" || type=="skill-run")) {
+            if(type=="projects-open" && sender.Key=="macro"){sender.SkillLibrary(true);return;}
+            if(type=="github-device-page" && sender.Key=="macro"){await skills.Handle(sender,type,msg);return;}
+            if(sender.Key=="macro" && (type=="skills-open" || type=="skills-refresh" || type=="skill-project-add" || type=="skill-project-select" || type=="skill-start-apps" || type=="skill-save" || type=="skill-remove" || type=="skill-run" || type=="skill-button-options" || type=="github-login" || type=="github-cancel" || type=="github-refresh" || type=="github-logout" || type=="github-share-connect" || type=="github-sync" || type=="github-register" || type=="project-config" || type=="project-bind" || type=="project-conflict" || type=="project-open-app")) {
                 if(type=="skills-open")sender.SkillLibrary(true);
                 await skills.Handle(sender,type,msg);if(!ending)sender.Send(new{kind="skills-result",action=type});return;
             }
@@ -219,7 +223,7 @@ namespace MinaDesk {
         }
         internal void ScheduleClose(DeskWindow w){w.BeginInvoke(new Action(()=>{if(!ending&&Windows.ContainsKey(w.Key)&&Windows[w.Key]==w)Enable(w.Key,false);}));}
         protected override void ExitThreadCore(){
-            if(!ending){ending=true;historyTimer.Stop();historyTimer.Dispose();save.Stop();sample.Stop();instanceTimer.Stop();Save();Tray.Visible=false;
+            if(!ending){ending=true;projectSyncTimer.Stop();projectSyncTimer.Dispose();historyTimer.Stop();historyTimer.Dispose();save.Stop();sample.Stop();instanceTimer.Stop();Save();Tray.Visible=false;
                 foreach(var w in Windows.Values.ToArray())w.Dispose();Windows.Clear();
                 skills.Dispose();smart.Dispose();commands.Dispose();Tray.Dispose();menu.Dispose();save.Dispose();sample.Dispose();instanceTimer.Dispose();Chick.Dispose();}
             base.ExitThreadCore();

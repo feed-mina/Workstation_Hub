@@ -6,3 +6,5 @@
 **/archive-jobs.json*
 **/archive-receipts.ndjson*
 **/client_secret*.json
+**/skill-workspaces.json*
+**/github-auth/
