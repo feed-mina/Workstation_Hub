@@ -13,6 +13,7 @@ namespace MinaDesk {
         internal WebView2 Browser {get;private set;}
         readonly Hub hub;
         readonly Uri address;
+        Rectangle? beforeSkills;
         const string Host="workstation-hub.invalid";
         const int WM_DWMCOLORIZATIONCOLORCHANGED=0x0320;
         [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr handle,int attribute,ref int value,int size);
@@ -29,6 +30,15 @@ namespace MinaDesk {
             FormClosing+=(s,e)=>{if(e.CloseReason==CloseReason.UserClosing){e.Cancel=true;hub.ScheduleClose(this);}else if(e.CloseReason==CloseReason.WindowsShutDown)hub.ExitThread();};
         }
         void RememberBounds(){if(Visible&&WindowState==FormWindowState.Normal&&IsHandleCreated)hub.Remember(Key,Bounds);}
+        internal void SkillLibrary(bool open) {
+            if(Key!="macro" || WindowState!=FormWindowState.Normal)return;
+            if(open && !beforeSkills.HasValue) {
+                beforeSkills=Bounds;
+                Bounds=Settings.Fit(new Rectangle(Left,Top,Math.Max(Width,1040),Math.Max(Height,810)));
+            }else if(!open && beforeSkills.HasValue) {
+                Bounds=Settings.Fit(beforeSkills.Value);beforeSkills=null;
+            }
+        }
         protected override void OnHandleCreated(EventArgs e){
             base.OnHandleCreated(e);
             int dark=1,cap=0x00334418,ink=0x00daf9eb;
@@ -67,3 +77,4 @@ namespace MinaDesk {
         }
     }
 }
+

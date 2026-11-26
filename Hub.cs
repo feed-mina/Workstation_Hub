@@ -25,11 +25,16 @@ namespace MinaDesk {
         readonly Timer save=new Timer{Interval=350}, sample=new Timer{Interval=1500}, instanceTimer=new Timer{Interval=500};
         readonly Telemetry telemetry=new Telemetry();
         readonly MacroCommands commands;
+        readonly ProjectSkills skills;
         readonly SmartHome smart;
-        readonly Queue<object> logs=new Queue<object>();
+        readonly WorkHistory history;
+        readonly Timer historyTimer=new Timer{Interval=5000};
+        WorkEntry[] sharedHistory=new WorkEntry[0];
+        string publishedId, historyStatus="이 PC", historyError;
+        bool historySyncing;
         readonly HashSet<string> active=new HashSet<string>();
         readonly Dictionary<string,object> studio=new Dictionary<string,object>{{"lamp",true},{"brightness",80},{"bar",true},{"kelvin",4500},{"ac",false},{"target",23},{"presence",true},{"door",false}};
-        string mode="대기";long sequence;bool ending;
+        string mode="대기";bool ending;
         System.Threading.Tasks.Task<CoreWebView2Environment> environment;
         internal System.Threading.Tasks.Task<CoreWebView2Environment> EnvironmentTask(){
             if(environment==null || environment.IsFaulted)environment=CoreWebView2Environment.CreateAsync(null,Path.Combine(DataDir,"WebView2"));
@@ -39,7 +44,13 @@ namespace MinaDesk {
             CoreWebView2Environment.SetLoaderDllFolderPath(AppDomain.CurrentDomain.BaseDirectory);
             DataDir=data;Directory.CreateDirectory(data);
             file=Path.Combine(data,"windows.json");Config=Settings.Load(file);
+            try { history=new WorkHistory(data); }
+            catch (Exception ex) { if (!(ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException || ex is InvalidOperationException)) throw;
+                historyError="작업 기록 파일을 열 수 없습니다.";
+            }
             commands=new MacroCommands(data,()=>{if(!ending)Broadcast();});
+            skills=new ProjectSkills(data,()=>{if(!ending)Broadcast();},AddLog);
+            commands.ProjectFolder=()=>skills.Folder;
             smart=new SmartHome(data,()=>{if(!ending)Broadcast();},AddLog);
             Chick=new Icon(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"chick.ico"));
             menu=new ContextMenuStrip{ShowCheckMargin=true,ShowImageMargin=false};
@@ -62,10 +73,12 @@ namespace MinaDesk {
             if(activate!=null){instanceTimer.Tick+=(s,e)=>{if(activate.WaitOne(0))Restore(true);};instanceTimer.Start();}
             foreach(var key in Keys)if(Config.Panels[key].Enabled)Open(key);
             AddLog("작업실","앱을 시작했습니다.");
+            historyTimer.Tick+=(s,e)=>SyncHistory();historyTimer.Start();SyncHistory();
         }
         internal void Remember(string key,Rectangle bounds) {if(ending)return;Config.Panels[key].Remember(bounds);save.Stop();save.Start();}
         void Save(){try{Config.Save(file);}catch(IOException){Tray.Text="Mini Workstation Hub · 창 설정 저장 실패";}catch(UnauthorizedAccessException){Tray.Text="Mini Workstation Hub · 창 설정 저장 권한 확인";}}
-        internal void Ready(DeskWindow win) {win.Send(Snapshot());if(win.Key=="log")win.Send(new {kind="history",items=logs.ToArray()});RefreshSampling();}
+        internal void Ready(DeskWindow win) {win.Send(Snapshot());if(win.Key=="log")SendHistory();RefreshSampling();if(win.Key=="macro")RefreshSkills();}
+        async void RefreshSkills(){await skills.Refresh();}
         void Open(string key){
             var entry=Config.Panels[key];
             var rect=entry.Width>0 && entry.Height>0?Settings.Fit(entry.Bounds()):Settings.Initial(key);
@@ -80,7 +93,6 @@ namespace MinaDesk {
                 if(win.WindowState==FormWindowState.Normal)Config.Panels[key].Remember(win.Bounds);
                 Windows.Remove(key);win.Dispose();
             }}
-            if(key=="log"&&!on)logs.Clear();
             Save();RefreshSampling();AddLog("기능",Titles[Array.IndexOf(Keys,key)]+(on?" 켜짐":" 꺼짐"));Broadcast();
         }
         internal void Restore(bool recoverEmpty) {
@@ -96,25 +108,73 @@ namespace MinaDesk {
             telemetry.Reset();
             if(should){sample.Start();Windows["pc"].Send(telemetry.Sample());}else sample.Stop();
         }
-        object Snapshot(){return new {kind="state",mode,home=studio,smart=smart.Snapshot(),macro=commands.Snapshot(),active=active.ToArray(),enabled=Config.Panels.ToDictionary(p=>p.Key,p=>p.Value.Enabled)};}
+        object Snapshot(){return new {kind="state",version=typeof(Hub).Assembly.GetName().Version.ToString(3),mode,home=studio,smart=smart.Snapshot(),macro=commands.Snapshot(),skills=skills.Snapshot(),active=active.ToArray(),enabled=Config.Panels.ToDictionary(p=>p.Key,p=>p.Value.Enabled)};}
         void Broadcast(){var state=Snapshot();foreach(var w in Windows.Values)w.Send(state);}
         void AddLog(string source,string detail){
-            if(!Config.Panels["log"].Enabled)return;
-            var entry=new {id=++sequence,time=DateTime.Now.ToString("HH:mm:ss"),source,detail};
-            logs.Enqueue(entry);while(logs.Count>60)logs.Dequeue();
-            DeskWindow w;if(Windows.TryGetValue("log",out w))w.Send(new {kind="entry",item=entry});
+            if(history==null)return;
+            try { history.Add(source,detail);historyError=null; }
+            catch (Exception ex) { if (!(ex is IOException || ex is UnauthorizedAccessException || ex is InvalidOperationException)) throw; historyError="이 PC에 기록을 저장하지 못했습니다."; }
+            SendHistory();
+        }
+        void SendHistory(){
+            DeskWindow win;
+            if(!Windows.TryGetValue("log",out win)||!win.Ready)return;
+            var local=history==null?new WorkEntry[0]:history.Snapshot();
+            var rows=WorkHistory.Recent(local.Concat(sharedHistory));
+            win.Send(new {kind="history",status=historyError??historyStatus,
+                items=rows.Select(row=>new {id=row.Id,time=row.At.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"),pc=row.Pc,source=row.Source,detail=row.Detail}).ToArray()});
+        }
+        async void SyncHistory(){
+            string folder=Config.HistoryShare;
+            if(ending||historySyncing||history==null||String.IsNullOrEmpty(folder))return;
+            historySyncing=true;
+            var local=history.Snapshot();
+            string previous=publishedId;
+            try {
+                var remote=await System.Threading.Tasks.Task.Run(()=>history.Sync(folder,local,previous));
+                if(ending||folder!=Config.HistoryShare)return;
+                sharedHistory=remote;publishedId=local.Select(row=>row.Id).LastOrDefault();
+                historyStatus="공유 연결됨";
+            } catch (Exception ex) { if (!(ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException || ex is InvalidOperationException)) throw;
+                if(folder==Config.HistoryShare)historyStatus="공유 연결 실패 · 이 PC에는 계속 저장";
+            } finally { historySyncing=false;if(!ending)SendHistory(); }
+        }
+        void ConfigureHistory(DeskWindow owner){
+            using(var dialog=new Form{Text="작업 기록 공유",ClientSize=new Size(520,147),StartPosition=FormStartPosition.CenterParent,FormBorderStyle=FormBorderStyle.FixedDialog,MaximizeBox=false,MinimizeBox=false}){
+                var hint=new Label{Left=12,Top=12,Width=494,Height=55,
+                    Text="두 PC에 같은 네트워크 공유 폴더를 입력하세요. 기록 내용과 PC 이름이 공유됩니다. 비워 두면 이 PC에만 저장합니다."};
+                var input=new TextBox{Left=12,Top=68,Width=496,Text=Config.HistoryShare??""};
+                var apply=new Button{Text="저장",Left=348,Top=104,DialogResult=DialogResult.OK};
+                var cancel=new Button{Text="취소",Left=431,Top=104,DialogResult=DialogResult.Cancel};
+                dialog.Controls.AddRange(new Control[]{hint,input,apply,cancel});dialog.AcceptButton=apply;dialog.CancelButton=cancel;
+                if(dialog.ShowDialog(owner)!=DialogResult.OK)return;
+                var folder=input.Text.Trim();
+                Uri address;
+                if(folder.Length>0&&(!folder.StartsWith(@"\\")||!Uri.TryCreate(folder,UriKind.Absolute,out address)||!address.IsUnc||address.Segments.Length<2||folder.StartsWith(@"\\?\")||folder.StartsWith(@"\\.\"))){
+                    MessageBox.Show(owner,@"Windows 공유 폴더 주소를 입력하세요. 예: \\서버\공유폴더","작업 기록 공유");return;
+                }
+                if(folder==Config.HistoryShare)return;
+                Config.HistoryShare=folder;sharedHistory=new WorkEntry[0];publishedId=null;
+                historyStatus=folder.Length==0?"이 PC":"공유 연결 확인 중";
+                Save();SendHistory();SyncHistory();
+            }
         }
         static string StringValue(Dictionary<string,object> m,string k){object obj;return m.TryGetValue(k,out obj)?obj as string:null;}
         internal async void Receive(DeskWindow sender,string data){
             DeskWindow current;
-            if(data.Length>4096||!Windows.TryGetValue(sender.Key,out current)||current!=sender)return;
+            if(data.Length>16384||!Windows.TryGetValue(sender.Key,out current)||current!=sender)return;
             Dictionary<string,object> msg;
             try{msg=Json.Deserialize<Dictionary<string,object>>(data);}catch(ArgumentException){return;}catch(InvalidOperationException){return;}
             if(msg==null)return;
             string type=StringValue(msg,"type"),id=StringValue(msg,"id");
             if(id=="mic_mute")id="volume_mute";
             if(type=="ready"){sender.Ready=true;Ready(sender);return;}
-            if(type=="clear"&&sender.Key=="log"){logs.Clear();sender.Send(new {kind="history",items=logs.ToArray()});return;}
+            if(type=="skills-close" && sender.Key=="macro") { sender.SkillLibrary(false);return; }
+            if(sender.Key=="macro" && (type=="skills-open" || type=="skills-refresh" || type=="skill-project-add" || type=="skill-project-select" || type=="skill-start-apps" || type=="skill-save" || type=="skill-remove" || type=="skill-run")) {
+                if(type=="skills-open")sender.SkillLibrary(true);
+                await skills.Handle(sender,type,msg);if(!ending)sender.Send(new{kind="skills-result",action=type});return;
+            }
+            if(type=="history-settings"&&sender.Key=="log"){ConfigureHistory(sender);return;}
             if(type=="macro-settings"&&sender.Key=="macro"){commands.Configure(sender);return;}
             if(type=="smart-settings"&&sender.Key=="home"){smart.Configure(sender);return;}
             if(type=="smart"&&sender.Key=="home") {
@@ -131,11 +191,15 @@ namespace MinaDesk {
                     if(ending)return;
                     AddLog("PC 명령",text);Broadcast();sender.Send(new{kind="notice",text});return;
                 }
-                bool linked=id=="work_start"||id=="work_end"||id=="light_toggle"||id=="ac_toggle";
+                bool linked=id=="light_toggle"||id=="ac_toggle";
                 if(linked&&!Config.Panels["home"].Enabled){sender.Send(new {kind="notice",text="트레이에서 스마트홈을 먼저 켜세요."});return;}
                 if(id=="work_start"||id=="work_end"){
-                    bool on=id=="work_start";mode=on?"업무":"퇴근";studio["lamp"]=studio["bar"]=studio["ac"]=on;
-                    if(on){studio["brightness"]=85;studio["kelvin"]=4500;studio["target"]=23;}
+                    bool on=id=="work_start";mode=on?"업무":"퇴근";
+                    if(on){text=skills.StartApps();AddLog("매크로","업무 시작 · 선택한 AI 앱 열기 요청");Broadcast();sender.Send(new {kind="notice",text});return;}
+                    AddLog("매크로","퇴근 · PC 잠금 요청");
+                    text=await commands.Execute("pc_lock",sender);
+                    if(!ending){AddLog("PC 명령",text);Broadcast();sender.Send(new {kind="notice",text});}
+                    return;
                 }else if(id=="light_toggle"){bool on=!((bool)studio["lamp"]||(bool)studio["bar"]);studio["lamp"]=studio["bar"]=on;if(on&&(int)studio["brightness"]==0)studio["brightness"]=65;}
                 else if(id=="ac_toggle")studio["ac"]=!(bool)studio["ac"];
                 else if(id=="focus"){if(!active.Remove(id))active.Add(id);}
@@ -155,10 +219,11 @@ namespace MinaDesk {
         }
         internal void ScheduleClose(DeskWindow w){w.BeginInvoke(new Action(()=>{if(!ending&&Windows.ContainsKey(w.Key)&&Windows[w.Key]==w)Enable(w.Key,false);}));}
         protected override void ExitThreadCore(){
-            if(!ending){ending=true;save.Stop();sample.Stop();instanceTimer.Stop();Save();Tray.Visible=false;
+            if(!ending){ending=true;historyTimer.Stop();historyTimer.Dispose();save.Stop();sample.Stop();instanceTimer.Stop();Save();Tray.Visible=false;
                 foreach(var w in Windows.Values.ToArray())w.Dispose();Windows.Clear();
-                smart.Dispose();commands.Dispose();Tray.Dispose();menu.Dispose();save.Dispose();sample.Dispose();instanceTimer.Dispose();Chick.Dispose();}
+                skills.Dispose();smart.Dispose();commands.Dispose();Tray.Dispose();menu.Dispose();save.Dispose();sample.Dispose();instanceTimer.Dispose();Chick.Dispose();}
             base.ExitThreadCore();
         }
     }
 }
+

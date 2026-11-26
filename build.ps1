@@ -16,6 +16,8 @@ $dest=New-Item -ItemType Directory -Path $Destination -Force
 $csc=Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
 $libs=Join-Path $SdkPath 'lib/net462'
 $frameworkReferences=@('/reference:System.Net.Http.dll','/reference:System.Security.dll')
+$wpf=Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/WPF'
+foreach($name in @('UIAutomationClient.dll','UIAutomationTypes.dll','WindowsBase.dll')){$frameworkReferences+="/reference:$wpf/$name"}
 $files=Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.cs' | ForEach-Object FullName
 $exe=Join-Path $dest.FullName 'WorkstationHub.exe'
 & $csc /nologo /target:winexe /platform:x64 /optimize+ /codepage:65001 "/out:$exe" "/win32icon:$PSScriptRoot/chick.ico" "/win32manifest:$PSScriptRoot/app.manifest" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll $frameworkReferences "/reference:$libs/Microsoft.Web.WebView2.Core.dll" "/reference:$libs/Microsoft.Web.WebView2.WinForms.dll" $files
@@ -24,3 +26,4 @@ foreach($f in @('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinFor
 Copy-Item -LiteralPath (Join-Path $SdkPath 'runtimes/win-x64/native/WebView2Loader.dll') -Destination $dest.FullName -Force
 foreach($name in @('ui','licenses','chick.ico','README.md','LICENSE.md')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $dest.FullName -Recurse -Force}
 Write-Output $exe
+

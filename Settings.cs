@@ -16,6 +16,7 @@ namespace MinaDesk {
         public void Remember(Rectangle rect) {X=rect.X; Y=rect.Y; Width=rect.Width; Height=rect.Height;}
     }
     public class Settings {
+        public string HistoryShare {get;set;}
         public Dictionary<string,PanelSettings> Panels {get;set;}
         public Settings(){ Panels=new Dictionary<string,PanelSettings>(); }
         internal static Settings Load(string file) {
@@ -48,3 +49,4 @@ namespace MinaDesk {
         }
     }
 }
+

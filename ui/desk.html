@@ -1,9 +1,14 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"><title>Mini Workstation Hub</title><link rel="stylesheet" href="style.css"></head><body>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"><title>Mini Workstation Hub</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="skills.css"></head><body>
 <header><img src="chick.webp" alt=""><div><small>MINA DESK</small><h1 id="title">작업실</h1></div><span id="badge" class="badge">준비 중</span></header>
 <main>
 <section id="macro" hidden>
- <div class="row section-label"><span>매크로 키패드</span><div><button id="macro-settings">설정</button> <button id="edit">이름 편집</button></div></div><div id="keys" class="keys"></div>
- <div class="assistant"><img src="chick.webp" alt=""><div><b id="mode">작업 대기</b><small>PC 명령 7개 · 작업실 시나리오 시연</small></div></div>
+ <div class="row section-label"><span>매크로 키패드</span><div><button id="macro-settings">설정</button> <button id="edit">이름 편집</button></div></div>
+ <div class="project-bar"><label for="project-select">프로젝트</label><select id="project-select" aria-label="현재 프로젝트"><option value="">프로젝트 추가</option></select><button id="project-add" title="프로젝트 폴더 추가" aria-label="프로젝트 폴더 추가">＋</button></div>
+ <div id="keys" class="keys"></div>
+ <div class="row skill-section-title"><b>프로젝트 스킬</b><button id="manage-skills">스킬 관리 ＋</button></div>
+ <p id="skill-empty" class="empty">스킬 버튼에서 설치된 스킬을 골라 등록하세요.</p><div id="project-skill-keys" class="keys"></div>
+ <p id="skill-status" class="skill-status" role="status" aria-live="polite"></p>
+ <div class="assistant"><img src="chick.webp" alt=""><div><b id="mode">작업 대기</b><small>스킬 실행은 선택한 데스크톱 AI 앱에서 진행됩니다.</small></div></div>
 </section>
 <section id="pc" hidden><div class="metrics"><div><small>CPU 사용률</small><div class="metric-value"><strong id="cpu">—</strong><svg class="meter" viewBox="0 0 44 44" aria-hidden="true"><circle class="meter-track" cx="22" cy="22" r="16" pathLength="100"/><circle id="cpu-arc" cx="22" cy="22" r="16" pathLength="100"/></svg></div><div class="track"><i id="cpu-bar"></i></div></div><div><small>메모리 사용률</small><div class="metric-value"><strong id="ram">—</strong><svg class="meter" viewBox="0 0 44 44" aria-hidden="true"><circle class="meter-track" cx="22" cy="22" r="16" pathLength="100"/><circle id="ram-arc" cx="22" cy="22" r="16" pathLength="100"/></svg></div><div class="track sage"><i id="ram-bar"></i></div></div></div>
  <div class="chart"><div class="row"><b>사용률 추이</b><small><i class="dot cpu"></i> CPU &nbsp; <i class="dot ram"></i> 메모리</small></div><svg id="plot" viewBox="0 0 360 110" role="img" aria-label="최근 CPU와 메모리 사용률"></svg><small id="interval">표본 수집 중</small></div>
@@ -15,8 +20,29 @@
  <div class="segments"><button data-home="presence"></button><button data-home="door"></button></div>
  <button id="open-room" class="room-link"><img src="chick.webp" alt="">3D 작업실 보기 <span>↗</span></button>
 </details></section>
-<section id="log" hidden><div class="row section-label"><span id="count">현재 세션</span><button id="clear">기록 지우기</button></div><ol id="history" aria-label="작업 기록"></ol></section>
+<section id="log" hidden><div class="row section-label"><span id="count">기록 없음</span><button id="history-settings">공유 설정</button></div><ol id="history" aria-label="작업 기록"></ol></section>
 </main><output id="notice" aria-live="polite"></output>
 <dialog id="editor"><label for="key-name">키 이름</label><input id="key-name" maxlength="24"><div class="row"><button id="cancel">취소</button><button id="apply">저장</button></div></dialog>
+<dialog id="skills-dialog" aria-labelledby="skills-title">
+ <div class="row"><div><small>PROJECT SKILLS</small><h2 id="skills-title">내 프로젝트의 스킬 버튼</h2></div><button id="skills-close" aria-label="스킬 화면 닫기">닫기</button></div>
+ <p id="skills-project-hint" class="skill-project-hint"></p>
+ <div class="skill-layout">
+  <section class="skill-library" aria-label="설치된 스킬 목록"><div class="row"><b>설치된 스킬 <span id="skills-count">0</span></b><button id="skills-refresh">새로고침</button></div>
+   <label class="sr-only" for="skill-search">스킬 이름과 설명 검색</label><input id="skill-search" type="search" placeholder="이름 또는 설명 검색" autocomplete="off">
+   <div id="skill-catalog" class="skill-catalog"></div><div class="row skill-pager"><button id="skill-prev" aria-label="이전 스킬 목록">← 이전</button><small id="skill-page"></small><button id="skill-next" aria-label="다음 스킬 목록">다음 →</button></div>
+   <small id="skills-warning">내 Codex·공용·Claude 스킬과 현재 프로젝트 폴더를 확인합니다. 플러그인 캐시 전체를 설치 목록으로 표시하지 않습니다.</small>
+  </section>
+  <section class="skill-detail" aria-label="스킬 버튼 설정"><span id="skill-source" class="skill-source">스킬을 선택하세요</span><h3 id="skill-name">버튼 하나로 AI에 전달</h3><p id="skill-description">왼쪽에서 설치된 스킬을 고르면 이 프로젝트의 버튼으로 저장할 수 있어요.</p>
+   <label for="skill-label">버튼 이름</label><input id="skill-label" maxlength="40" placeholder="예: 쉬운 수정 가이드">
+   <label for="skill-target">실행할 데스크톱 앱</label><select id="skill-target"><option value="gpt">GPT 데스크톱</option><option value="claude">Claude 데스크톱 · Code</option></select>
+   <label for="skill-instruction">이 버튼으로 요청할 일 <small>선택 사항 · 프로젝트마다 다르게 저장</small></label><textarea id="skill-instruction" rows="4" maxlength="4000" placeholder="예: 현재 변경 사항을 검토하고 HTML 수정 가이드를 만들어 줘"></textarea>
+   <p class="skill-handoff-note">선택한 프로젝트에서 새 작업을 엽니다. 앱에서 요청문과 전송 버튼을 확인하면 자동 전송합니다. 폴더 접근 승인 등이 나오면 앱에서 직접 확인해 주세요.</p>
+   <button type="button" id="skill-save" class="skill-primary">이 프로젝트에 버튼 추가</button><button type="button" id="skill-new" hidden>새 버튼으로 추가하기</button>
+  </section>
+ </div>
+ <p id="skills-dialog-status" class="skill-status" role="status" aria-live="polite"></p>
+ <div class="skill-saved-heading"><b>이 프로젝트에 등록한 버튼</b><small>실행 · 수정 · 삭제</small></div><div id="skill-saved-list"></div>
+</dialog>
 <dialog id="room-dialog"><div class="row"><b>작업실 배치 · 시연</b><button id="close-room">닫기</button></div><div id="room-stage"><div id="room-fallback" hidden>3D 표시를 사용할 수 없어요. 아래에서 기기를 조작할 수 있습니다.</div></div><div class="segments"><button id="room-lamp"></button><button id="room-ac"></button></div><div class="row"><button id="room-view-left">↶ 왼쪽</button><button id="room-view-right">오른쪽 ↷</button></div><small id="room-status"></small></dialog>
 <script src="vendor/gsap.min.js"></script><script src="app.js"></script></body></html>
+

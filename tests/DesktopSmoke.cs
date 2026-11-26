@@ -50,19 +50,19 @@ class DesktopSmoke {
         await Wait(()=>hub.Windows.Count==4&&hub.Windows.Values.All(form=>form.Ready),"four WebView2 panels",50);
         Check(hub.Windows.Values.All(form=>form.ShowInTaskbar&&form.MinimizeBox&&GetWindow(form.Handle,4)==IntPtr.Zero),"four independent top-level taskbar windows");
         Check(hub.Tray.Visible&&hub.Tray.Icon!=null&&hub.Toggles.Count==4,"chick NotifyIcon and four menu items");
-        await Dom("macro","document.querySelectorAll('.key').length===12","12 working macro keys");
+        await Dom("macro","document.querySelectorAll('#keys .key').length===11&&!!document.querySelector('[data-key=skills]')","base macro keys and skill entry");
         await Dom("pc","/^\\d+%$/.test(document.getElementById('cpu').innerText)&&document.querySelectorAll('#plot path').length===2","real CPU/RAM chart");
         var moved=new Dictionary<string,Rectangle>();
         foreach(var key in Hub.Keys)moved[key]=await CheckWindow(key);
         await Js("macro","document.querySelector('[data-key=work_start]').click()");
-        await Dom("home","document.getElementById('brightness').value==='85'","macro scene shared with home");
+        await Dom("home","document.getElementById('brightness').value==='80'","work start leaves simulated lights unchanged");
         await Dom("log","document.getElementById('history').textContent.includes('업무 시작')","event reaches log window");
         await Js("home","document.getElementById('open-room').click()");
         await Dom("home","document.querySelector('#room-stage canvas')!==null","native WebView 3D scene",15);
         await Js("home","document.getElementById('room-lamp').click();document.getElementById('close-room').click()");
         await Dom("home","document.getElementById('brightness').value==='0'&&!document.querySelector('#room-stage canvas')","3D toggle and cleanup");
         hub.Toggles["home"].PerformClick();await Task.Delay(120);Check(!hub.Windows.ContainsKey("home")&&!hub.Toggles["home"].Checked,"tray off closes feature");
-        await Dom("macro","document.querySelector('[data-key=work_start]').disabled","dependent keys disabled");
+        await Dom("macro","!document.querySelector('[data-key=work_start]').disabled","work start independent of home panel");
         hub.Toggles["home"].PerformClick();await Wait(()=>hub.Windows["home"].Ready,"tray reopen");
         await Dom("home","document.getElementById('brightness').value==='0'","tray on rebuilds view from shared state");
         await Js("macro","document.getElementById('edit').click();document.querySelector('[data-key=vscode]').click();document.getElementById('key-name').value='작업 앱';document.getElementById('apply').click();document.getElementById('edit').click()");
@@ -100,3 +100,4 @@ class DesktopSmoke {
         return passed.Last()=="PASS"?0:1;
     }
 }
+

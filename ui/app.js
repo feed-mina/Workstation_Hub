@@ -7,9 +7,9 @@ const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const send=(type,detail={})=>channel.postMessage({type,...detail});
 function loadScript(path){return new Promise((resolve,reject)=>{const tag=document.createElement('script');tag.src=path;tag.onload=resolve;tag.onerror=reject;document.head.append(tag);});}
 const definitions=[
- ['work_start','업무 시작','작업실','rocket'],['work_end','퇴근 · 잠금','시나리오','moon'],['volume_mute','볼륨 음소거','PC 소리','volume-x'],['vscode','VS Code','프로젝트','code-2'],
- ['terminal','터미널','앱 열기','terminal-square'],['record','녹화 시작','OBS','video'],['media','재생 / 정지','미디어','play'],['screenshot','스크린샷','화면','camera'],
- ['focus','집중 모드','집중','bell-off'],['light_toggle','작업실 조명','조명','lightbulb'],['ac_toggle','냉방','온도','wind'],['pc_lock','PC 잠금','Windows','lock']
+ ['work_start','업무 시작','work-cycle · AI','rocket'],['work_end','퇴근 · 잠금','PC 잠금','moon'],['volume_mute','볼륨 음소거','PC 소리','volume-x'],['vscode','VS Code','프로젝트','code-2'],
+ ['terminal','터미널','Git Bash','terminal-square'],['record','녹화 시작','OBS','video'],['media','재생 / 정지','미디어','play'],['screenshot','스크린샷','화면','camera'],
+ ['focus','집중 표시','허브 표시만','bell-off'],['skills','스킬','프로젝트별 등록','code-2'],['pc_lock','PC 잠금','Windows','lock']
 ];
 const labels=new Map();let editing=false,selected=null,model=null,noticeTimer,chartHistory=[],lastLogId=0;
 function announce(text){$('notice').textContent=text;clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>$('notice').textContent='',6500);}
@@ -26,7 +26,13 @@ function setupKeys(){
    labels.set(id,typeof cache[id]==='string'&&cache[id].trim()?cache[id].slice(0,24):original);
    const b=document.createElement('button');b.className='key';b.dataset.key=id;
    const title=document.createElement('b'),sub=document.createElement('small');title.textContent=labels.get(id);sub.textContent=hint;b.append(glyph(icon),title,sub);
-   b.onclick=()=>{press(b);if(editing){selected=id;$('key-name').value=labels.get(id);$('editor').showModal();$('key-name').select();}else send('macro',{id,label:labels.get(id)})};$('keys').append(b);
+   b.onclick=()=>{press(b);if(editing){selected=id;$('key-name').value=labels.get(id);$('editor').showModal();$('key-name').select();}else if(id==='skills')window.projectSkills.open();else send('macro',{id,label:labels.get(id)})};
+   if(id==='work_start'){
+     const group=document.createElement('div');group.className='work-start-group';group.append(b);
+     const choice=document.createElement('select');choice.id='start-apps';choice.setAttribute('aria-label','업무 시작 시 열 AI 앱');choice.title='마지막 선택을 기억합니다';
+     for(const [value,text] of [['both','GPT + Claude'],['gpt','GPT'],['claude','Claude']]){const o=document.createElement('option');o.value=value;o.textContent=text;choice.append(o);}
+     choice.onchange=()=>send('skill-start-apps',{value:choice.value});group.append(choice);$('keys').append(group);
+   }else $('keys').append(b);
  }
  $('edit').onclick=()=>{editing=!editing;$('keys').classList.toggle('editing',editing);$('edit').textContent=editing?'편집 완료':'이름 편집';if(model)paint(model);};
  $('apply').onclick=()=>{const label=$('key-name').value.trim().slice(0,24);if(!label)return;$('keys').querySelector('[data-key="'+selected+'"] b').textContent=label;labels.set(selected,label);try{localStorage.setItem('key-names',JSON.stringify(Object.fromEntries(labels)))}catch{}$('editor').close();};
@@ -36,20 +42,22 @@ function setupKeys(){
 function paint(state){
  model=state;const h=state.home;
  if(key==='macro'){
+   if(state.version&&$('badge'))$('badge').textContent='v'+state.version+' · PC 명령';
    $('mode').textContent=state.mode+' 모드';
    const lit=new Set(state.active);if(state.mode==='업무')lit.add('work_start');if(state.mode==='퇴근')lit.add('work_end');if(h.lamp||h.bar)lit.add('light_toggle');if(h.ac)lit.add('ac_toggle');
    const native=state.macro||{},busy=new Set(native.busy||[]);
    if(native.muted===true)lit.add('volume_mute');if(native.recording===true)lit.add('record');
-   for(const b of $('keys').children){
+   for(const b of $('keys').querySelectorAll('.key')){
      const id=b.dataset.key,active=lit.has(id);
      b.classList.toggle('on',active);
      if(['work_start','work_end','volume_mute','record','focus','light_toggle','ac_toggle'].includes(id))b.setAttribute('aria-pressed',String(active));
-     b.disabled=!editing&&(busy.has(id)||(!state.enabled.home&&['work_start','work_end','light_toggle','ac_toggle'].includes(id)));
+     b.disabled=!editing&&(busy.has(id)||(id==='work_end'&&busy.has('pc_lock'))||(!state.enabled.home&&['light_toggle','ac_toggle'].includes(id)));
      b.setAttribute('aria-busy',String(busy.has(id)));
      if(id==='volume_mute')b.querySelector('small').textContent=native.muted==null?'상태 확인 대기':native.muted?'음소거 중':'소리 켜짐';
      if(id==='record')b.querySelector('small').textContent=native.recording==null?'OBS 미연결':native.recording?'녹화 중':'녹화 대기';
      if(id==='record'&&labels.get(id)==='녹화 시작')b.querySelector('b').textContent=native.recording===true?'녹화 정지':'녹화 시작';
    }
+   if(window.projectSkills)window.projectSkills.render(state.skills);
  }
  if(key==='home'){
    if(window.smartHomeView)window.smartHomeView.render(state.smart);
@@ -68,8 +76,7 @@ function setupHome(){
  $('cool-up').onclick=()=>{if(model)send('home',{id:'target',value:Math.min(28,model.home.target+1)})};
 }
 function addLog(row){
- if(row.id<=lastLogId)return;lastLogId=row.id;
- const li=document.createElement('li');for(const [tag,cls,val] of [['time','',row.time],['span','origin',row.source],['span','',row.detail]]){const node=document.createElement(tag);node.className=cls;node.textContent=val;li.append(node);}
+ const li=document.createElement('li');for(const [tag,cls,val] of [['time','',row.time],['span','origin',row.pc+' · '+row.source],['span','',row.detail]]){const node=document.createElement(tag);node.className=cls;node.textContent=val;li.append(node);}
  $('history').prepend(li);if($('history').children.length>60)$('history').lastElementChild.remove();$('count').textContent=$('history').children.length+'개 · 최근 순';
  if(!reduced.matches)gsap.from(li,{opacity:.25,duration:.2});
 }
@@ -91,18 +98,23 @@ function sample(data){
 }
 async function boot(){
  if(!Object.hasOwn(panels,key))return;
- $('title').textContent=panels[key];$('badge').textContent={pc:'실제 측정',home:'기기 시연',macro:'PC 명령',log:'현재 세션'}[key];$(key).hidden=false;
- if(key==='macro'){await loadScript('icons.js');setupKeys();}
+ $('title').textContent=panels[key];$('badge').textContent={pc:'실제 측정',home:'기기 시연',macro:'PC 명령',log:'이 PC'}[key];$(key).hidden=false;
+ if(key==='macro'){await loadScript('icons.js');await loadScript('skills.js');setupKeys();window.projectSkills.setup();}
  if(key==='pc')await loadScript('vendor/d3.min.js');
  if(key==='home'){setupHome();await loadScript('room.js');await loadScript('smart-home.js');$('badge').textContent='방별 연결';}
- if(key==='log')$('clear').onclick=()=>send('clear');
+ if(key==='log')$('history-settings').onclick=()=>send('history-settings');
  channel.addEventListener('message',({data})=>{
    if(data.kind==='state')paint(data);
    if(data.kind==='sample'&&key==='pc')sample(data);
-   if(data.kind==='history'&&key==='log'){$('history').replaceChildren();lastLogId=0;$('count').textContent='현재 세션 · 기록 없음';data.items.forEach(addLog);}
-   if(data.kind==='entry'&&key==='log')addLog(data.item);
+   if(data.kind==='history'&&key==='log'){
+     $('badge').textContent=data.status;
+     const signature=data.items.map(row=>row.id).join(',');
+     if(signature!==lastLogId){lastLogId=signature;$('history').replaceChildren();$('count').textContent='기록 없음';data.items.forEach(addLog);}
+   }
    if(data.kind==='notice')announce(data.text);
+   if(data.kind==='skills-result'&&key==='macro')window.projectSkills.result(data.action);
  });
  send('ready');
 }
 boot().catch(error=>{document.querySelector('main').textContent='화면 파일을 불러오지 못했습니다. 앱 폴더를 확인한 뒤 트레이에서 이 창을 다시 켜세요.';console.error(error);});
+
