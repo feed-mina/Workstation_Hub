@@ -125,7 +125,23 @@ button.dev-card[aria-pressed=true]{background:var(--sun);color:#153522}
 #calendar-days span[aria-current=date]{background:var(--lime);color:#0f3021;font-weight:bold}
 .widget-buttons{margin-top:5px}
 .widget-buttons button{padding:4px 8px}
-#gpu-details dd{font-variant-numeric:tabular-nums}
+.pc-sensors{margin:8px 0 0;padding:5px 9px;border:1px solid var(--desk-edge);border-radius:10px;background:var(--desk-surface)}
+.pc-sensors dl{display:grid;grid-template-columns:1fr 1fr;column-gap:10px}
+.pc-sensors dl div{min-width:0;align-items:start}
+.pc-sensors dt{flex:0 1 auto}
+.pc-sensors dd{font-variant-numeric:tabular-nums;line-height:1.35;overflow-wrap:anywhere}
+.pc-sensors small{margin:4px 0 1px;font-size:10px}
+.ai-provider{margin-bottom:7px;padding:9px;border-radius:8px;border:1px solid var(--desk-edge);background:var(--desk-input)}
+.ai-provider h3{font-size:13px;margin:0}
+.ai-status{font-size:11px;color:var(--lime)}
+.model-dialog{max-width:780px}
+.model-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.model-option{padding:9px;border:1px solid var(--desk-edge);border-radius:9px;background:var(--desk-input);min-width:0}
+.model-generation{display:inline-block;color:var(--lime);font-size:11px;margin-bottom:3px}
+.model-option dl>div{display:block;padding:5px 0}
+.model-option dl>div:last-child{border-bottom:0}
+.model-option dd{text-align:left;font-size:12px;margin-top:2px}
+@media(max-width:390px){.pc-sensors dl,.model-grid{grid-template-columns:1fr}}
 @container (max-width:790px){.dev-cards{grid-template-columns:repeat(6,minmax(0,1fr))}}
 @container (max-width:570px){
  .dev-cards{grid-template-columns:repeat(4,minmax(0,1fr))}

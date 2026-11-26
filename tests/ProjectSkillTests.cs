@@ -77,6 +77,7 @@ static class ProjectSkillTests {
             checks+=CloudProjectTests.Run(Path.Combine(root,"cloud"));
             checks+=BrowserAccountTests.Run(Path.Combine(root,"browser-accounts"));
             checks+=DeveloperConsoleTests.Run(Path.Combine(root,"developer-console"));
+            checks+=HardwareAiTests.Run(Path.Combine(root,"hardware-ai"));
             Console.WriteLine("PASS · "+checks+" checks: project persistence/isolation, recovery, catalog scope, desktop links, exact draft/send guards and GitHub projects");return 0;
         }catch(Exception ex){Console.Error.WriteLine(ex);return 1;}
     }

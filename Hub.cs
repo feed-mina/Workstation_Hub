@@ -34,7 +34,7 @@ namespace MinaDesk {
         WorkEntry[] sharedHistory=new WorkEntry[0];
         string publishedId, historyStatus="이 PC", historyError;
         bool historySyncing;
-        bool gpuWatching,gpuReading;
+        bool gpuReading;
         readonly HashSet<string> active=new HashSet<string>();
         readonly Dictionary<string,object> studio=new Dictionary<string,object>{{"lamp",true},{"brightness",80},{"bar",true},{"kelvin",4500},{"ac",false},{"target",23},{"presence",true},{"door",false}};
         string mode="대기";bool ending;
@@ -118,7 +118,6 @@ namespace MinaDesk {
             Config.Panels[key].Enabled=on;Toggles[key].Checked=on;
             if(on)Open(key);
             else {DeskWindow win;if(Windows.TryGetValue(key,out win)){
-                if(key=="pc")gpuWatching=false;
                 if(win.WindowState==FormWindowState.Normal)Config.Panels[key].Remember(win.Bounds);
                 Windows.Remove(key);win.Dispose();
             }}
@@ -173,9 +172,8 @@ namespace MinaDesk {
             DeskWindow win;
             commands.Sampling(!ending&&Windows.TryGetValue("macro",out win)&&win.Ready&&win.WindowState!=FormWindowState.Minimized);
             bool should=!ending&&Windows.TryGetValue("pc",out win)&&win.Ready&&win.WindowState!=FormWindowState.Minimized;
-            bool gpu=should&&gpuWatching;
-            if(gpu && !gpuTimer.Enabled){gpuTimer.Start();SampleGpu();}
-            else if(!gpu)gpuTimer.Stop();
+            if(should && !gpuTimer.Enabled){gpuTimer.Start();SampleGpu();}
+            else if(!should)gpuTimer.Stop();
             if(should==sample.Enabled)return;
             telemetry.Reset();
             if(should){sample.Start();Windows["pc"].Send(telemetry.Sample());}else sample.Stop();
@@ -272,7 +270,7 @@ namespace MinaDesk {
             string type=StringValue(msg,"type"),id=StringValue(msg,"id");
             if(id=="mic_mute")id="volume_mute";
             if(type=="ready"){sender.Ready=true;Ready(sender);return;}
-            if(type=="gpu-watch" && sender.Key=="pc"){gpuWatching=id=="on";RefreshSampling();return;}
+            if(sender.Key=="dev" && (type=="developer-ai" || type=="developer-models")){await developer.HandleUtility(sender,type,msg);return;}
             if(type=="developer-show" && sender.Key=="macro"){ShowPanel("dev");return;}
             if(sender.Key=="dev" && (type=="developer-run" || type=="developer-choose" || type=="developer-result-open" || type=="developer-auto-branches" || type=="developer-cancel")){
                 if(type=="developer-choose" && (id=="layout" || id=="panel")) {

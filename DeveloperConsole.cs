@@ -28,7 +28,6 @@ namespace MinaDesk {
             {"codex-previous","Codex에서 Ctrl+Shift+Tab으로 이전 채팅 또는 탭으로 이동하세요."},
             {"codex-next","Codex에서 Ctrl+Tab으로 다음 채팅 또는 탭으로 이동하세요."},
             {"codex-find-chat","Codex의 설정 → 키보드 단축키에서 채팅 검색 단축키를 지정할 수 있습니다."},
-            {"codex-sidebar","Codex에서 Ctrl+B로 사이드바를 켜거나 끌 수 있습니다."},
             {"codex-find-file","Codex에서 Ctrl+P로 프로젝트 파일을 검색하세요."},
             {"codex-file-tree","Codex에서 Ctrl+Shift+E로 파일 트리를 열거나 닫을 수 있습니다."}
         };
@@ -43,6 +42,8 @@ namespace MinaDesk {
         readonly DeveloperPreferenceStore prefs;
         readonly DeveloperGitHub github;
         readonly DeveloperWeather weather;
+        readonly CodexModelComparison models=new CodexModelComparison();
+        readonly AiAccounts accounts;
         readonly Hub hub;
         readonly CancellationTokenSource lifetime=new CancellationTokenSource();
         readonly Dictionary<string,DeveloperBranches> branches=new Dictionary<string,DeveloperBranches>();
@@ -56,6 +57,7 @@ namespace MinaDesk {
             prefs=new DeveloperPreferenceStore(hub.DataDir);
             github=new DeveloperGitHub(skills.GitHub);
             weather=new DeveloperWeather(prefs,()=>hub.BroadcastDeveloper());
+            accounts=new AiAccounts(prefs,hub.DataDir);
         }
         SkillProject Project { get { return skills.Current; } }
         GitHubRepository Repo { get { return Project==null?null:Project.Repository; } }
@@ -112,6 +114,25 @@ namespace MinaDesk {
             };
         }
         internal object WidgetSnapshot() {return weather.Snapshot();}
+        internal async Task HandleUtility(DeskWindow owner,string type,Dictionary<string,object> message) {
+            string action=Text(message,"id");
+            try {
+                if(type=="developer-ai"){
+                    Action send=()=>owner.Send(accounts.Snapshot());
+                    send();
+                    await accounts.Handle(action,Text(message,"provider"),send);
+                    return;
+                }
+                if(action=="guide"){Open(CodexModelComparison.Guide);return;}
+                if(action=="release"){Open(CodexModelComparison.Release);return;}
+                if(action=="show" || action=="refresh"){
+                    Action send=()=>owner.Send(models.Snapshot(prefs.Model));
+                    send();await models.Refresh(action=="refresh",send);
+                }
+            }catch(Exception ex){
+                if(!disposed)owner.Send(new{kind="notice",text=DeveloperResult.Limit(ex.Message,350)});
+            }
+        }
         static string Text(Dictionary<string,object> message,string key) {return GitHubValues.Text(message,key);}
         static DeveloperResult Notice(string title,string summary) {return new DeveloperResult{title=title,summary=summary};}
         void Show(DeskWindow owner,DeveloperResult result) {
@@ -481,7 +502,7 @@ namespace MinaDesk {
                     Open(prefs.WebAddress(id));return;
             }
         }
-        public void Dispose(){disposed=true;lifetime.Cancel();weather.Dispose();}
+        public void Dispose(){disposed=true;lifetime.Cancel();weather.Dispose();models.Dispose();accounts.Dispose();}
     }
 
     internal static class WindowsDownloads {
