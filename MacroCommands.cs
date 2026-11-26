@@ -26,6 +26,8 @@ namespace MinaDesk {
         }
         internal object Snapshot(){return new{muted,recording,busy=busy.ToArray(),accounts=new{mediaProvider=accounts.Value.MediaProvider,connections=BrowserAccounts.Keys.Select(key=>new{key,connected=accounts.Connected(key),alias=accounts.Get(key).Alias}).ToArray()}};}
         internal void ConfigureAccounts(Form owner,string selected=null){using(var dialog=new AccountConnectionsDialog(accounts,selected??"media",changed))dialog.ShowDialog(owner);}
+        internal string ScreenshotFolder { get { return settings.ScreenshotFolder; } }
+        internal string WorkingFolder { get { return settings.WorkingFolder; } }
         internal void Sampling(bool enabled){if(disposed)return;if(enabled)timer.Start();else timer.Stop();}
         internal void Configure(Form owner) {
             using(var dialog=new MacroSettingsDialog(settings)) {

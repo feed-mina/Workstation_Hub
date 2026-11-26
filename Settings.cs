@@ -17,13 +17,18 @@ namespace MinaDesk {
     }
     public class Settings {
         public string HistoryShare {get;set;}
+        public string Layout {get;set;}
+        public string Theme {get;set;}
         public Dictionary<string,PanelSettings> Panels {get;set;}
-        public Settings(){ Panels=new Dictionary<string,PanelSettings>(); }
+        public Settings(){ Panels=new Dictionary<string,PanelSettings>();Layout="extended";Theme="green"; }
         internal static Settings Load(string file) {
             Settings value=null;
             try { value=new JavaScriptSerializer().Deserialize<Settings>(File.ReadAllText(file)); } catch(IOException){} catch(ArgumentException){} catch(InvalidOperationException){}
             if(value==null || value.Panels==null) value=new Settings();
-            foreach(string id in Hub.Keys) if(!value.Panels.ContainsKey(id)||value.Panels[id]==null) value.Panels[id]=new PanelSettings();
+            if(!ValidLayout(value.Layout))value.Layout="extended";
+            if(value.Theme!="neon")value.Theme="green";
+            foreach(string id in Hub.Keys) if(!value.Panels.ContainsKey(id)||value.Panels[id]==null)
+                value.Panels[id]=new PanelSettings{Enabled=value.Layout!="original" || !IsExtension(id)};
             return value;
         }
         internal void Save(string file) {
@@ -33,19 +38,49 @@ namespace MinaDesk {
         }
         internal static Rectangle Fit(Rectangle proposed) {
             var area=Screen.FromRectangle(proposed).WorkingArea;
-            int w=Math.Min(area.Width,Math.Max(300,proposed.Width));
-            int h=Math.Min(area.Height,Math.Max(210,proposed.Height));
+            int w=Math.Min(area.Width,Math.Max(280,proposed.Width));
+            int h=Math.Min(area.Height,Math.Max(153,proposed.Height));
             return new Rectangle(Math.Max(area.Left,Math.Min(proposed.X,area.Right-w)),Math.Max(area.Top,Math.Min(proposed.Y,area.Bottom-h)),w,h);
         }
-        internal static Rectangle Initial(string key) {
-            var a=Screen.PrimaryScreen.WorkingArea;
-            int gap=9, cell=Math.Min(460,(a.Width-4*gap)/3);
-            int left=a.Left+Math.Max(gap,(a.Width-(cell*3+2*gap))/2);
-            int top=a.Top+gap;
-            int tall=Math.Min(610,Math.Max(340,a.Height-260));
-            int i=Array.IndexOf(Hub.Keys,key);
-            if(a.Width<1000) {cell=Math.Max(310,(a.Width-gap*3)/2);left=a.Left+gap;tall=Math.Max(270,(a.Height-gap*3)/2);return Fit(new Rectangle(left+(i%2)*(cell+gap),top+(i/2)*(tall+gap),cell,tall));}
-            return Fit(i==3 ? new Rectangle(left,top+tall+gap,3*cell+2*gap,Math.Min(240,a.Height-tall-3*gap)) : new Rectangle(left+i*(cell+gap),top,cell,tall));
+        internal static bool IsExtension(string key) { return key=="dev" || key=="widgets"; }
+        internal static bool ValidLayout(string value) { return value=="extended" || value=="original" || value=="focus"; }
+        internal static Rectangle Initial(string key,string layout="extended") {
+            return Fit(LayoutBounds(Screen.PrimaryScreen.WorkingArea,key,layout));
+        }
+        internal static Rectangle LayoutBounds(Rectangle area,string key,string layout) {
+            const int gap=8;
+            bool compact=area.Width<1040;
+            int columns=compact?2:3;
+            int columnWidth=(area.Width-gap*(columns+1))/columns;
+            int logHeight=Math.Max(153,Math.Min(215,area.Height/5));
+            int usable=area.Height-logHeight-gap*4;
+            int firstHeight=layout=="original"?usable+gap:usable*(layout=="focus"?61:36)/100;
+            int secondHeight=usable-firstHeight;
+            int left=area.Left+gap;
+            int top=area.Top+gap;
+            int second=top+firstHeight+gap;
+            if(layout=="original" && IsExtension(key))
+                return new Rectangle(left,top,key=="dev"?Math.Min(1050,area.Width-gap*2):columnWidth,Math.Min(700,area.Height-gap*2));
+            if(compact && layout!="original") {
+                string[] order=layout=="focus"?new[]{"macro","dev","pc","home","widgets","log"}:new[]{"macro","pc","home","widgets","dev","log"};
+                int index=Array.IndexOf(order,key);
+                int height=(area.Height-gap*4)/3;
+                return new Rectangle(left+(index%2)*(columnWidth+gap),top+(index/2)*(height+gap),columnWidth,height);
+            }
+            if(key=="log")return new Rectangle(left,area.Bottom-logHeight-gap,area.Width-gap*2,logHeight);
+            if(layout=="original" && compact) {
+                int rowHeight=(usable-gap)/2;
+                if(key=="home")return new Rectangle(left,top+rowHeight+gap,area.Width-gap*2,rowHeight);
+                return new Rectangle(left+(key=="pc"?columnWidth+gap:0),top,columnWidth,rowHeight);
+            }
+            if(layout=="focus") {
+                if(key=="macro")return new Rectangle(left,top,columnWidth,firstHeight);
+                if(key=="dev")return new Rectangle(left+columnWidth+gap,top,area.Width-columnWidth-gap*3,firstHeight);
+                return new Rectangle(left+(key=="pc"?0:key=="home"?1:2)*(columnWidth+gap),second,columnWidth,secondHeight);
+            }
+            if(key=="dev")return new Rectangle(left,second,columnWidth*2+gap,secondHeight);
+            if(key=="widgets")return new Rectangle(left+(columns-1)*(columnWidth+gap),second,columnWidth,secondHeight);
+            return new Rectangle(left+(key=="macro"?0:key=="pc"?1:2)*(columnWidth+gap),top,columnWidth,firstHeight);
         }
     }
 }

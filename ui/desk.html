@@ -1,8 +1,8 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"><title>Mini Workstation Hub</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="skills.css"></head><body>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"><title>Mini Workstation Hub</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="skills.css"><link rel="stylesheet" href="developer.css"></head><body>
 <header><img src="chick.webp" alt=""><div><small>MINA DESK</small><h1 id="title">작업실</h1></div><span id="badge" class="badge">준비 중</span></header>
 <main>
 <section id="macro" hidden>
- <div class="row section-label"><span>매크로 키패드</span><div><button id="account-settings">계정 연결</button> <button id="macro-settings">설정</button> <button id="edit">이름 편집</button></div></div>
+ <div class="row section-label"><span>매크로 키패드</span><div><button id="developer-show">개발자 컨트롤</button> <button id="account-settings">계정 연결</button> <button id="macro-settings">설정</button> <button id="edit">이름 편집</button></div></div>
  <div class="project-bar"><label for="project-select">프로젝트</label><select id="project-select" aria-label="현재 프로젝트"><option value="">프로젝트 추가</option></select><button id="project-add" title="프로젝트 추가" aria-label="프로젝트 추가">＋</button><button id="project-settings" title="프로젝트 설정" aria-label="프로젝트 설정">설정</button></div>
  <p id="project-context" class="skill-project-hint"></p>
  <div id="keys" class="keys"></div>
@@ -14,6 +14,10 @@
 <section id="pc" hidden><div class="metrics"><div><small>CPU 사용률</small><div class="metric-value"><strong id="cpu">—</strong><svg class="meter" viewBox="0 0 44 44" aria-hidden="true"><circle class="meter-track" cx="22" cy="22" r="16" pathLength="100"/><circle id="cpu-arc" cx="22" cy="22" r="16" pathLength="100"/></svg></div><div class="track"><i id="cpu-bar"></i></div></div><div><small>메모리 사용률</small><div class="metric-value"><strong id="ram">—</strong><svg class="meter" viewBox="0 0 44 44" aria-hidden="true"><circle class="meter-track" cx="22" cy="22" r="16" pathLength="100"/><circle id="ram-arc" cx="22" cy="22" r="16" pathLength="100"/></svg></div><div class="track sage"><i id="ram-bar"></i></div></div></div>
  <div class="chart"><div class="row"><b>사용률 추이</b><small><i class="dot cpu"></i> CPU &nbsp; <i class="dot ram"></i> 메모리</small></div><svg id="plot" viewBox="0 0 360 110" role="img" aria-label="최근 CPU와 메모리 사용률"></svg><small id="interval">표본 수집 중</small></div>
  <dl><div><dt>물리 메모리</dt><dd id="memory">—</dd></div><div><dt id="volume">시스템 드라이브 여유</dt><dd id="disk">—</dd></div><div><dt>네트워크 수신 / 송신</dt><dd id="network">—</dd></div></dl>
+ <details id="gpu-details" class="studio-demo"><summary>GPU · 온도 센서</summary>
+  <dl><div><dt>GPU 사용률</dt><dd id="gpu-load">—</dd></div><div><dt>GPU 메모리 · 전용 / 공유</dt><dd id="gpu-memory">—</dd></div><div><dt>CPU / GPU 온도</dt><dd>센서 연결 필요</dd></div></dl>
+  <small id="gpu-status" role="status"></small>
+ </details>
 </section>
 <section id="home" hidden><div class="row section-label"><span id="smart-status">Home Assistant 연결 전</span><button id="smart-settings">연결 설정</button></div><small id="smart-updated"></small><p id="smart-error" class="smart-error" role="status"></p><div id="smart-rooms" class="room-tabs" aria-label="방 선택"></div><div id="smart-cards" aria-live="polite"></div><details class="studio-demo"><summary>작업실 조명 · 3D 시연</summary><div class="home-card"><div class="row"><div><b>책상 스탠드</b><small id="lamp-pct">밝기</small></div><button data-home="lamp" class="switch">켜짐</button></div><input id="brightness" type="range" min="0" max="100" aria-label="가상 스탠드 밝기"></div>
  <div class="home-card"><div class="row"><b>모니터 라이트바</b><button data-home="bar" class="switch"></button></div><div class="segments" id="temps"><button data-k="3000">전구색</button><button data-k="4500">주백색</button><button data-k="6500">주광색</button></div></div>
@@ -22,7 +26,64 @@
  <button id="open-room" class="room-link"><img src="chick.webp" alt="">3D 작업실 보기 <span>↗</span></button>
 </details></section>
 <section id="log" hidden><div class="row section-label"><span id="count">기록 없음</span><button id="history-settings">공유 설정</button></div><ol id="history" aria-label="작업 기록"></ol></section>
+<section id="dev" class="dev-console" hidden>
+ <div class="dev-toolbar">
+  <label class="dev-layout-control">창 배치<select id="dev-layout"><option value="original">기존 4창</option><option value="extended">6창 확장</option><option value="focus">개발자 모드</option></select></label>
+  <button type="button" id="dev-windows">창 표시</button>
+  <button type="button" id="dev-theme">네온 테마</button>
+  <button type="button" id="dev-settings">바로가기 설정</button>
+ </div>
+ <div class="dev-context">
+  <div class="dev-context-fields">
+   <div class="dev-project-field"><label for="dev-project">프로젝트</label><div class="dev-input-group"><select id="dev-project"></select><button type="button" id="dev-add" aria-label="프로젝트 추가">＋</button><button type="button" id="dev-project-settings">설정</button></div></div>
+   <label>브랜치<select id="dev-branch" aria-label="브랜치"></select></label>
+   <label>실행 위치<select id="dev-location" aria-label="실행 위치"><option value="">—</option><option value="local">이 PC의 로컬</option><option value="cloud">☁ 클라우드</option></select></label>
+   <label class="dev-share"><span>프로젝트 설정</span><span><input type="checkbox" id="dev-share"> 내 PC에 공유</span></label>
+  </div>
+  <p id="dev-context-line" class="dev-muted"></p>
+  <p id="dev-context-status" class="dev-muted" role="status" hidden></p>
+ </div>
+ <div id="dev-tabs" class="dev-tabs" role="tablist" aria-label="개발자 카드 종류"></div>
+ <section id="dev-action-panel" role="tabpanel">
+  <div class="dev-action-tools"><div><h2 id="dev-tab-title"></h2><small id="dev-tab-hint"></small></div><label class="sr-only" for="dev-search">카드 검색</label><input type="search" id="dev-search" placeholder="카드 검색" maxlength="80"></div>
+  <div class="dev-cards" id="dev-cards"></div>
+ </section>
+ <div class="row dev-progress" id="dev-working" hidden><small>카드 처리 중</small><button type="button" id="dev-cancel-run" hidden>검증 취소</button></div>
+ <section class="dev-result" id="dev-result" aria-labelledby="dev-result-title" hidden>
+  <div class="row"><h2 id="dev-result-title" tabindex="-1"></h2><button type="button" id="dev-result-close">결과 닫기</button></div>
+  <p id="dev-result-summary" class="dev-muted" role="status"></p>
+  <div id="dev-result-rows"></div><pre id="dev-result-body" tabindex="0" hidden></pre>
+ </section>
+</section>
+<section id="widgets" class="dev-widgets" hidden>
+ <article class="dev-widget dev-clock">
+  <div class="row"><div><h2>이 PC의 시간</h2><small id="widget-date"></small></div><time id="widget-clock"></time></div>
+ </article>
+ <article class="dev-widget">
+  <div class="row widget-weather-head"><h2>주간 날씨</h2><div><select id="weather-city" aria-label="예보 도시"></select> <button type="button" id="weather-refresh">새로고침</button></div></div>
+  <p id="weather-current" class="widget-current" hidden></p><div id="weather-days" class="widget-days"></div>
+  <div class="row widget-weather-footer"><small id="weather-status" role="status"></small><button type="button" id="weather-source">Open-Meteo</button></div>
+ </article>
+ <article class="dev-widget">
+  <div class="row"><h2 id="calendar-month"></h2><div><button type="button" id="calendar-prev" aria-label="이전 달">‹</button> <button type="button" id="calendar-next" aria-label="다음 달">›</button></div></div>
+  <div class="widget-calendar"><div class="widget-calendar-week" aria-hidden="true"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div><div id="calendar-days" aria-labelledby="calendar-month"></div></div>
+  <div class="row"><button type="button" id="calendar-today">오늘</button><button type="button" id="calendar-open">Google Calendar 열기</button></div>
+ </article>
+ <article class="dev-widget">
+  <h2>AI 사용량</h2><small>연결한 서비스에서 남은 한도와 사용량을 확인하세요.</small>
+  <div class="widget-buttons"><button type="button" data-widget="usage-codex">Codex 사용량</button><button type="button" data-widget="usage-claude">Claude 사용량</button></div>
+ </article>
+ <article class="dev-widget">
+  <h2>빠른 실행</h2><div class="widget-buttons" id="widget-dock"></div>
+ </article>
+</section>
 </main><output id="notice" aria-live="polite"></output>
+<dialog id="dev-dialog" class="dev-dialog" aria-labelledby="dev-dialog-title">
+ <div class="row"><h2 id="dev-dialog-title"></h2><button type="button" id="dev-dialog-close">닫기</button></div>
+ <p id="dev-dialog-note" class="dev-muted"></p>
+ <div id="dev-dialog-content"></div>
+ <div class="dev-dialog-actions" id="dev-dialog-actions"></div>
+</dialog>
 <dialog id="editor"><label for="key-name">키 이름</label><input id="key-name" maxlength="24"><div class="row"><button id="cancel">취소</button><button id="apply">저장</button></div></dialog>
 <dialog id="skills-dialog" aria-labelledby="skills-title">
  <div class="row"><div><small>PROJECT SKILLS</small><h2 id="skills-title">내 프로젝트의 스킬 버튼</h2></div><button id="skills-close" aria-label="스킬 화면 닫기">닫기</button></div>

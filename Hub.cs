@@ -11,8 +11,8 @@ using Timer=System.Windows.Forms.Timer;
 
 namespace MinaDesk {
     sealed class Hub : ApplicationContext {
-        internal static readonly string[] Keys={"macro","pc","home","log"};
-        internal static readonly string[] Titles={"매크로 패드","PC 성능","스마트홈","작업 기록"};
+        internal static readonly string[] Keys={"macro","pc","home","log","dev","widgets"};
+        internal static readonly string[] Titles={"매크로 패드","PC 성능","스마트홈","작업 기록","개발자 컨트롤","보조 위젯"};
         static readonly HashSet<string> MacroActions=new HashSet<string>{"work_start","work_end","volume_mute","vscode","terminal","record","media","screenshot","focus","light_toggle","ac_toggle","pc_lock","youtube_upload","naver_blog_upload"};
         internal readonly Dictionary<string,DeskWindow> Windows=new Dictionary<string,DeskWindow>();
         internal readonly Dictionary<string,ToolStripMenuItem> Toggles=new Dictionary<string,ToolStripMenuItem>();
@@ -22,20 +22,25 @@ namespace MinaDesk {
         internal readonly string DataDir;
         internal readonly JavaScriptSerializer Json=new JavaScriptSerializer();
         readonly string file; readonly ContextMenuStrip menu;
-        readonly Timer save=new Timer{Interval=350}, sample=new Timer{Interval=1500}, instanceTimer=new Timer{Interval=500};
+        readonly Timer save=new Timer{Interval=350}, sample=new Timer{Interval=1500}, gpuTimer=new Timer{Interval=6000}, instanceTimer=new Timer{Interval=500};
         readonly Telemetry telemetry=new Telemetry();
         readonly MacroCommands commands;
         readonly ProjectSkills skills;
         readonly SmartHome smart;
+        readonly DeveloperConsole developer;
         readonly WorkHistory history;
         readonly Timer historyTimer=new Timer{Interval=5000};
         readonly Timer projectSyncTimer=new Timer{Interval=60000};
         WorkEntry[] sharedHistory=new WorkEntry[0];
         string publishedId, historyStatus="이 PC", historyError;
         bool historySyncing;
+        bool gpuWatching,gpuReading;
         readonly HashSet<string> active=new HashSet<string>();
         readonly Dictionary<string,object> studio=new Dictionary<string,object>{{"lamp",true},{"brightness",80},{"bar",true},{"kelvin",4500},{"ac",false},{"target",23},{"presence",true},{"door",false}};
         string mode="대기";bool ending;
+        string macroHandoff;
+        internal bool FocusEnabled {get{return active.Contains("focus");}}
+        internal string HomeDashboard {get{return smart.DashboardAddress;}}
         System.Threading.Tasks.Task<CoreWebView2Environment> environment;
         internal System.Threading.Tasks.Task<CoreWebView2Environment> EnvironmentTask(){
             if(environment==null || environment.IsFaulted)environment=CoreWebView2Environment.CreateAsync(null,Path.Combine(DataDir,"WebView2"));
@@ -54,6 +59,7 @@ namespace MinaDesk {
             commands.ProjectFolder=()=>skills.ToolFolder;
             commands.HasProject=()=>skills.HasProject;
             smart=new SmartHome(data,()=>{if(!ending)Broadcast();},AddLog);
+            developer=new DeveloperConsole(this,skills,commands);
             Chick=new Icon(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"chick.ico"));
             menu=new ContextMenuStrip{ShowCheckMargin=true,ShowImageMargin=false};
             var label=menu.Items.Add("MINA DESK   ·   기능 켜기 / 끄기");label.Enabled=false;
@@ -65,6 +71,15 @@ namespace MinaDesk {
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("켜진 창 모두 복원",null,(s,e)=>Restore(false));
             menu.Items.Add("창 위치 정리",null,(s,e)=>ResetPositions());
+            var layouts=new ToolStripMenuItem("창 배치");
+            layouts.DropDownItems.Add("기존 4창",null,(s,e)=>ChangeLayout("original"));
+            layouts.DropDownItems.Add("6창 확장",null,(s,e)=>ChangeLayout("extended"));
+            layouts.DropDownItems.Add("개발자 모드",null,(s,e)=>ChangeLayout("focus"));
+            menu.Items.Add(layouts);
+            var themes=new ToolStripMenuItem("테마");
+            themes.DropDownItems.Add("기존 녹색",null,(s,e)=>ChangeTheme("green"));
+            themes.DropDownItems.Add("네온",null,(s,e)=>ChangeTheme("neon"));
+            menu.Items.Add(themes);
             menu.Items.Add("매크로 설정",null,(s,e)=>{DeskWindow owner;if(Windows.TryGetValue("macro",out owner))commands.Configure(owner);else{Enable("macro",true);commands.Configure(Windows["macro"]);}});
             menu.Items.Add("스마트홈 연결",null,(s,e)=>{if(!Config.Panels["home"].Enabled)Enable("home",true);smart.Configure(Windows["home"]);});
             menu.Items.Add("작업실 종료",null,(s,e)=>ExitThread());
@@ -72,6 +87,7 @@ namespace MinaDesk {
             Tray.MouseClick+=(s,e)=>{if(e.Button==MouseButtons.Left)menu.Show(Cursor.Position);};
             save.Tick+=(s,e)=>{save.Stop();Save();};
             sample.Tick+=(s,e)=>{DeskWindow win;if(Windows.TryGetValue("pc",out win)&&win.Ready)win.Send(telemetry.Sample());};
+            gpuTimer.Tick+=(s,e)=>SampleGpu();
             if(activate!=null){instanceTimer.Tick+=(s,e)=>{if(activate.WaitOne(0))Restore(true);};instanceTimer.Start();}
             foreach(var key in Keys)if(Config.Panels[key].Enabled)Open(key);
             AddLog("작업실","앱을 시작했습니다.");
@@ -80,11 +96,20 @@ namespace MinaDesk {
         }
         internal void Remember(string key,Rectangle bounds) {if(ending)return;Config.Panels[key].Remember(bounds);save.Stop();save.Start();}
         void Save(){try{Config.Save(file);}catch(IOException){Tray.Text="Mini Workstation Hub · 창 설정 저장 실패";}catch(UnauthorizedAccessException){Tray.Text="Mini Workstation Hub · 창 설정 저장 권한 확인";}}
-        internal void Ready(DeskWindow win) {win.Send(Snapshot());if(win.Key=="log")SendHistory();RefreshSampling();if(win.Key=="macro")RefreshSkills();}
+        internal void Ready(DeskWindow win) {
+            if(Settings.IsExtension(win.Key))win.Send(new{kind="theme",theme=Config.Theme});
+            else win.Send(Snapshot());
+            if(win.Key=="log")SendHistory();
+            if(win.Key=="dev")win.Send(developer.Snapshot());
+            if(win.Key=="widgets")win.Send(developer.WidgetSnapshot());
+            RefreshSampling();
+            if(win.Key=="macro"){DeliverMacro(win);RefreshSkills();}
+            else if(win.Key=="dev" && !Config.Panels["macro"].Enabled)RefreshSkills();
+        }
         async void RefreshSkills(){await skills.Refresh();}
         void Open(string key){
             var entry=Config.Panels[key];
-            var rect=entry.Width>0 && entry.Height>0?Settings.Fit(entry.Bounds()):Settings.Initial(key);
+            var rect=entry.Width>0 && entry.Height>0?Settings.Fit(entry.Bounds()):Settings.Initial(key,Config.Layout);
             var window=new DeskWindow(this,key,Titles[Array.IndexOf(Keys,key)],rect);
             Windows.Add(key,window);window.Show();
         }
@@ -93,6 +118,7 @@ namespace MinaDesk {
             Config.Panels[key].Enabled=on;Toggles[key].Checked=on;
             if(on)Open(key);
             else {DeskWindow win;if(Windows.TryGetValue(key,out win)){
+                if(key=="pc")gpuWatching=false;
                 if(win.WindowState==FormWindowState.Normal)Config.Panels[key].Remember(win.Bounds);
                 Windows.Remove(key);win.Dispose();
             }}
@@ -102,17 +128,91 @@ namespace MinaDesk {
             if(Windows.Count==0 && recoverEmpty)Enable("macro",true);
             foreach(var w in Windows.Values){if(w.WindowState==FormWindowState.Minimized)w.WindowState=FormWindowState.Normal;w.Show();w.Activate();}
         }
-        void ResetPositions(){foreach(string key in Keys){var r=Settings.Initial(key);Config.Panels[key].Remember(r);DeskWindow w;if(Windows.TryGetValue(key,out w)){w.WindowState=FormWindowState.Normal;w.Bounds=r;}}Save();}
+        void ResetPositions(){
+            foreach(string key in Keys){
+                var r=Settings.Initial(key,Config.Layout);
+                DeskWindow w;
+                if(Windows.TryGetValue(key,out w)){w.WindowState=FormWindowState.Normal;w.Bounds=r;}
+                Config.Panels[key].Remember(r);
+            }
+            Save();
+        }
+        internal void ChangeLayout(string layout) {
+            if(ending || !Settings.ValidLayout(layout))return;
+            Config.Layout=layout;
+            foreach(var key in Keys) {
+                bool on=layout!="original" || !Settings.IsExtension(key);
+                Enable(key,on);
+            }
+            ResetPositions();
+            Broadcast();
+        }
+        internal void ChangeTheme(string theme) {
+            if(ending || (theme!="green" && theme!="neon") || Config.Theme==theme)return;
+            Config.Theme=theme;
+            foreach(var win in Windows.Values)win.ApplyTheme(theme);
+            Save();Broadcast();
+        }
+        void ShowPanel(string key) {
+            if(!Config.Panels[key].Enabled)Enable(key,true);
+            var win=Windows[key];
+            if(win.WindowState==FormWindowState.Minimized)win.WindowState=FormWindowState.Normal;
+            win.Show();win.Activate();
+        }
+        internal void ShowMacro(string handoff) {
+            macroHandoff=handoff;
+            ShowPanel("macro");
+            DeliverMacro(Windows["macro"]);
+        }
+        void DeliverMacro(DeskWindow win) {
+            if(!win.Ready || macroHandoff==null)return;
+            win.Send(new {kind="macro-handoff",view=macroHandoff});
+            macroHandoff=null;
+        }
         internal void RefreshSampling(){
             DeskWindow win;
             commands.Sampling(!ending&&Windows.TryGetValue("macro",out win)&&win.Ready&&win.WindowState!=FormWindowState.Minimized);
             bool should=!ending&&Windows.TryGetValue("pc",out win)&&win.Ready&&win.WindowState!=FormWindowState.Minimized;
+            bool gpu=should&&gpuWatching;
+            if(gpu && !gpuTimer.Enabled){gpuTimer.Start();SampleGpu();}
+            else if(!gpu)gpuTimer.Stop();
             if(should==sample.Enabled)return;
             telemetry.Reset();
             if(should){sample.Start();Windows["pc"].Send(telemetry.Sample());}else sample.Stop();
         }
-        object Snapshot(){return new {kind="state",version=typeof(Hub).Assembly.GetName().Version.ToString(3),mode,home=studio,smart=smart.Snapshot(),macro=commands.Snapshot(),skills=skills.Snapshot(),active=active.ToArray(),enabled=Config.Panels.ToDictionary(p=>p.Key,p=>p.Value.Enabled)};}
-        void Broadcast(){var state=Snapshot();foreach(var w in Windows.Values)w.Send(state);}
+        async void SampleGpu(){
+            if(ending||gpuReading||!gpuTimer.Enabled)return;
+            DeskWindow requested;
+            if(!Windows.TryGetValue("pc",out requested))return;
+            gpuReading=true;
+            try {
+                var value=await System.Threading.Tasks.Task.Run(()=>GpuTelemetry.Sample());
+                if(!ending && gpuTimer.Enabled && !requested.IsDisposed)requested.Send(value);
+            }catch(Exception){
+                if(!ending && gpuTimer.Enabled && !requested.IsDisposed)requested.Send(new {kind="gpu-sample",status="Windows GPU 카운터를 읽을 수 없습니다."});
+            }finally{gpuReading=false;}
+        }
+        object Snapshot(){return new {kind="state",version=typeof(Hub).Assembly.GetName().Version.ToString(3),theme=Config.Theme,mode,home=studio,smart=smart.Snapshot(),macro=commands.Snapshot(),skills=skills.Snapshot(),active=active.ToArray(),enabled=Config.Panels.ToDictionary(p=>p.Key,p=>p.Value.Enabled)};}
+        void Broadcast(){
+            var state=Snapshot();
+            foreach(var w in Windows.Values) {
+                if(Settings.IsExtension(w.Key))w.Send(new{kind="theme",theme=Config.Theme});
+                else w.Send(state);
+            }
+            BroadcastDeveloper();
+        }
+        internal void BroadcastDeveloper() {
+            if(ending)return;
+            DeskWindow win;
+            if(Windows.TryGetValue("dev",out win) && win.Ready)win.Send(developer.Snapshot());
+            if(Windows.TryGetValue("widgets",out win) && win.Ready)win.Send(developer.WidgetSnapshot());
+        }
+        internal string ToggleFocus(){
+            if(!active.Remove("focus"))active.Add("focus");
+            string detail="집중 표시 "+(FocusEnabled?"켜짐":"꺼짐")+" · 허브 안에 표시";
+            AddLog("매크로",detail);Broadcast();return detail;
+        }
+        internal void LogDeveloper(string title,string summary){AddLog("개발자 컨트롤",title+" · "+summary);}
         void AddLog(string source,string detail){
             if(history==null)return;
             try { history.Add(source,detail);historyError=null; }
@@ -172,6 +272,16 @@ namespace MinaDesk {
             string type=StringValue(msg,"type"),id=StringValue(msg,"id");
             if(id=="mic_mute")id="volume_mute";
             if(type=="ready"){sender.Ready=true;Ready(sender);return;}
+            if(type=="gpu-watch" && sender.Key=="pc"){gpuWatching=id=="on";RefreshSampling();return;}
+            if(type=="developer-show" && sender.Key=="macro"){ShowPanel("dev");return;}
+            if(sender.Key=="dev" && (type=="developer-run" || type=="developer-choose" || type=="developer-result-open" || type=="developer-auto-branches" || type=="developer-cancel")){
+                if(type=="developer-choose" && (id=="layout" || id=="panel")) {
+                    sender.BeginInvoke(new Action(async()=>{if(!ending && !sender.IsDisposed)await developer.Handle(sender,type,msg);}));
+                    return;
+                }
+                await developer.Handle(sender,type,msg);return;
+            }
+            if(type=="developer-widget" && sender.Key=="widgets"){await developer.Handle(sender,type,msg);return;}
             if(type=="skills-close" && sender.Key=="macro") { sender.SkillLibrary(false);return; }
             if(type=="projects-open" && sender.Key=="macro"){sender.SkillLibrary(true);return;}
             if(type=="github-device-page" && sender.Key=="macro"){await skills.Handle(sender,type,msg);return;}
@@ -208,7 +318,7 @@ namespace MinaDesk {
                     return;
                 }else if(id=="light_toggle"){bool on=!((bool)studio["lamp"]||(bool)studio["bar"]);studio["lamp"]=studio["bar"]=on;if(on&&(int)studio["brightness"]==0)studio["brightness"]=65;}
                 else if(id=="ac_toggle")studio["ac"]=!(bool)studio["ac"];
-                else if(id=="focus"){if(!active.Remove(id))active.Add(id);}
+                else if(id=="focus"){sender.Send(new {kind="notice",text=ToggleFocus()});return;}
                 text=(StringValue(msg,"label")??id);if(text.Length>40)text=text.Substring(0,40);text+=" · 시연";
             }else if(type=="home"&&sender.Key=="home"){
                 if(id=="lamp"||id=="bar"||id=="ac"||id=="presence"||id=="door"){studio[id]=!(bool)studio[id];if(id=="lamp"&&(bool)studio[id]&&(int)studio["brightness"]==0)studio["brightness"]=65;}
@@ -225,9 +335,9 @@ namespace MinaDesk {
         }
         internal void ScheduleClose(DeskWindow w){w.BeginInvoke(new Action(()=>{if(!ending&&Windows.ContainsKey(w.Key)&&Windows[w.Key]==w)Enable(w.Key,false);}));}
         protected override void ExitThreadCore(){
-            if(!ending){ending=true;projectSyncTimer.Stop();projectSyncTimer.Dispose();historyTimer.Stop();historyTimer.Dispose();save.Stop();sample.Stop();instanceTimer.Stop();Save();Tray.Visible=false;
+            if(!ending){ending=true;projectSyncTimer.Stop();projectSyncTimer.Dispose();historyTimer.Stop();historyTimer.Dispose();save.Stop();sample.Stop();gpuTimer.Stop();gpuTimer.Dispose();instanceTimer.Stop();Save();Tray.Visible=false;
                 foreach(var w in Windows.Values.ToArray())w.Dispose();Windows.Clear();
-                skills.Dispose();smart.Dispose();commands.Dispose();Tray.Dispose();menu.Dispose();save.Dispose();sample.Dispose();instanceTimer.Dispose();Chick.Dispose();}
+                developer.Dispose();skills.Dispose();smart.Dispose();commands.Dispose();Tray.Dispose();menu.Dispose();save.Dispose();sample.Dispose();instanceTimer.Dispose();Chick.Dispose();}
             base.ExitThreadCore();
         }
     }

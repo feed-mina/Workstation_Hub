@@ -47,16 +47,32 @@ class DesktopSmoke {
         return moved;
     }
     static async Task Run(){
-        await Wait(()=>hub.Windows.Count==4&&hub.Windows.Values.All(form=>form.Ready),"four WebView2 panels",50);
-        Check(hub.Windows.Values.All(form=>form.ShowInTaskbar&&form.MinimizeBox&&GetWindow(form.Handle,4)==IntPtr.Zero),"four independent top-level taskbar windows");
-        Check(hub.Tray.Visible&&hub.Tray.Icon!=null&&hub.Toggles.Count==4,"chick NotifyIcon and four menu items");
-        await Dom("macro","document.querySelectorAll('#keys .key').length===11&&!!document.querySelector('[data-key=skills]')","base macro keys and skill entry");
+        await Wait(()=>hub.Windows.Count==6&&hub.Windows.Values.All(form=>form.Ready),"six WebView2 panels",50);
+        Check(hub.Windows.Values.All(form=>form.ShowInTaskbar&&form.MinimizeBox&&form.MaximizeBox&&GetWindow(form.Handle,4)==IntPtr.Zero),"six independent top-level taskbar windows");
+        Check(hub.Tray.Visible&&hub.Tray.Icon!=null&&hub.Toggles.Count==6,"tray exposes all six windows");
+        await Dom("macro","document.querySelectorAll('#keys .key').length===13&&!!document.querySelector('[data-key=skills]')","existing macro keys and skill entry");
         await Dom("pc","/^\\d+%$/.test(document.getElementById('cpu').innerText)&&document.querySelectorAll('#plot path').length===2","real CPU/RAM chart");
+        await Dom("dev","document.querySelectorAll('#dev-tabs button').length===5&&document.querySelectorAll('.dev-card').length===32&&!document.querySelector('.dev-card').disabled","five developer tabs and 32 initial Codex cards");
+        await Dom("widgets","document.querySelectorAll('#widget-dock button').length===9&&!!document.querySelector('#calendar-days [aria-current=date]')","clock, calendar and nine shortcuts");
+        await Js("widgets","document.getElementById('calendar-next').click()");
+        await Dom("widgets","!document.querySelector('#calendar-days [aria-current=date]')","calendar can navigate to next month");
+        await Js("dev","document.getElementById('dev-tab-1').click();document.querySelector('[data-card=gh-code]').click()");
+        await Dom("dev","document.getElementById('dev-result-summary').textContent.includes('GitHub 저장소가 연결된 프로젝트')","GitHub requires a repository instead of showing sample data");
+        await Js("dev","document.getElementById('dev-tab-0').click();document.querySelector('[data-card=model]').click();document.querySelector('#dev-dialog-content select').value='GPT-6.2 Sol';document.querySelector('#dev-dialog-actions button').click()");
+        await Dom("dev","document.getElementById('dev-context-line').textContent.includes('GPT-6.2 Sol')","model preference saved");
+        await Js("dev","document.getElementById('dev-theme').click()");
+        await Dom("widgets","document.body.classList.contains('neon')","theme reaches independent windows");
+        foreach(string layout in new[]{"original","focus","extended"}) {
+            hub.ChangeLayout(layout);
+            await Wait(()=>hub.Windows.Count==(layout=="original"?4:6)&&hub.Windows.Values.All(form=>form.Ready),layout+" independent windows");
+            var bounds=hub.Windows.Values.Select(form=>form.Bounds).ToArray();
+            Check(!bounds.Where((rect,i)=>bounds.Skip(i+1).Any(other=>rect.IntersectsWith(other))).Any(),layout+" non-overlapping placement");
+        }
         var moved=new Dictionary<string,Rectangle>();
         foreach(var key in Hub.Keys)moved[key]=await CheckWindow(key);
-        await Js("macro","document.querySelector('[data-key=work_start]').click()");
-        await Dom("home","document.getElementById('brightness').value==='80'","work start leaves simulated lights unchanged");
-        await Dom("log","document.getElementById('history').textContent.includes('업무 시작')","event reaches log window");
+        await Js("dev","document.getElementById('dev-tab-2').click();document.querySelector('[data-card=tool-focus]').click()");
+        await Dom("macro","document.querySelector('[data-key=focus]').getAttribute('aria-pressed')==='true'","developer tool and macro share focus state");
+        await Dom("log","document.getElementById('history').textContent.includes('집중 표시')","event reaches log window");
         await Js("home","document.getElementById('open-room').click()");
         await Dom("home","document.querySelector('#room-stage canvas')!==null","native WebView 3D scene",15);
         await Js("home","document.getElementById('room-lamp').click();document.getElementById('close-room').click()");
@@ -68,6 +84,15 @@ class DesktopSmoke {
         await Js("macro","document.getElementById('edit').click();document.querySelector('[data-key=vscode]').click();document.getElementById('key-name').value='작업 앱';document.getElementById('apply').click();document.getElementById('edit').click()");
         await Dom("macro","document.querySelector('[data-key=vscode] b').textContent==='작업 앱'","key editor persists");
         await Capture("macro","native-macro");await Capture("pc","native-pc");await Capture("home","native-home");await Capture("log","native-log");
+        hub.Windows["dev"].WindowState=FormWindowState.Maximized;
+        await Js("dev","document.getElementById('dev-tab-0').click()");
+        await Task.Delay(300);
+        await Capture("dev","native-developer-console");
+        hub.Windows["dev"].WindowState=FormWindowState.Normal;
+        hub.Windows["widgets"].WindowState=FormWindowState.Maximized;
+        await Task.Delay(300);
+        await Capture("widgets","native-widgets");
+        hub.Windows["widgets"].WindowState=FormWindowState.Normal;
         hub.Windows["log"].Close();await Wait(()=>!hub.Windows.ContainsKey("log"),"close via X");Check(!hub.Toggles["log"].Checked,"X disables feature in menu");
         foreach(var name in Hub.Keys){
             if(hub.Config.Panels[name].Enabled)hub.Toggles[name].PerformClick();
@@ -90,6 +115,8 @@ class DesktopSmoke {
         Check(hub.Windows["pc"].Bounds==saved.Panels["pc"].Bounds()&&hub.Toggles["pc"].Checked&&!hub.Toggles["macro"].Checked,"new process restores saved bounds and enabled flags");
         hub.Toggles["macro"].PerformClick();await Wait(()=>hub.Windows["macro"].Ready,"reopen macro");
         await Dom("macro","document.querySelector('[data-key=vscode] b').textContent==='작업 앱'","new process restores edited key name");
+        hub.Toggles["dev"].PerformClick();await Wait(()=>hub.Windows["dev"].Ready,"reopen developer control");
+        await Dom("dev","document.body.classList.contains('neon')&&document.getElementById('dev-context-line').textContent.includes('GPT-6.2 Sol')","new process restores theme and developer preference");
         passed.Add("PASS");Report();
     }
     [STAThread]static int Main(string[] args){

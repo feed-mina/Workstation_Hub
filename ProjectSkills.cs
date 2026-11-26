@@ -23,6 +23,14 @@ namespace MinaDesk {
         internal string Folder { get { return store.Current==null || store.Current.Location!="local"?null:store.Current.Folder; } }
         internal string ToolFolder { get { return store.Current==null?null:store.Current.Folder; } }
         internal bool HasProject { get { return store.Current!=null; } }
+        internal SkillProject Current { get { return store.Current; } }
+        internal IEnumerable<SkillProject> Projects { get { return store.Value.Projects; } }
+        internal IEnumerable<InstalledSkill> Installed { get { return catalog.Items; } }
+        internal GitHubProjects GitHub { get { return github; } }
+        internal bool Busy { get { return busy; } }
+        internal bool ReadOnly { get { return store.ReadOnly; } }
+        internal bool ShareReady { get { return github.AccountId>0 && store.Value.SyncAccountId==github.AccountId && store.Value.SyncRepositoryId>0; } }
+        internal string Status { get { return status; } }
         internal ProjectSkills(string data,Action onChanged,Action<string,string> onLog) {
             store=new SkillWorkspaces(data);github=new GitHubProjects(data);sharing=new ProjectSharing(github,store);changed=onChanged;log=onLog;status=store.LoadNotice;
         }
@@ -68,7 +76,7 @@ namespace MinaDesk {
             syncStatus=conflicts>0?"공유 충돌 "+conflicts+"개 · 프로젝트 설정에서 유지할 내용을 선택하세요.":"공유 설정 확인 완료 · "+DateTime.Now.ToString("HH:mm");Notify();
         }
         internal async Task SyncBackground() {
-            if(disposed || busy || loading || store.ReadOnly || github.AccountId<=0)return;busy=true;
+            if(disposed || busy || loading || store.ReadOnly || !ShareReady)return;busy=true;
             try{await Synchronize();}catch(Exception ex){syncStatus="공유 연결 확인 필요 · "+ex.Message;}finally{busy=false;Notify();}
         }
         internal async Task Handle(Form owner,string type,Dictionary<string,object> message) {
