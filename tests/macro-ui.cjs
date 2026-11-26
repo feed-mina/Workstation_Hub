@@ -9,7 +9,7 @@ function element(id) {
  return {dataset:{key:id},attributes,classList:{toggle(){}},setAttribute:(key,value)=>attributes[key]=value,querySelector:selector=>nodes[selector]};
 }
 const buttons = ids.map(element);
-const elements = {mode:{},keys:{children:buttons}};
+const elements = {mode:{},keys:{children:buttons,querySelectorAll:()=>buttons}};
 const context = vm.createContext({URLSearchParams,location:{search:'?panel=macro'},window:{chrome:{webview:{}}},document:{getElementById:id=>elements[id]},matchMedia:()=>({matches:true})});
 const app = fs.readFileSync(path.join(__dirname,'../ui/app.js'),'utf8');
 vm.runInContext(app.slice(0,app.indexOf('boot().catch')), context);
@@ -28,6 +28,9 @@ assert.equal(buttons[2].disabled,false);
 assert.equal(buttons[5].disabled,true);
 assert.equal(buttons[5].attributes['aria-pressed'],'false');
 assert.equal(buttons[5].querySelector('small').textContent,'OBS 미연결');
-assert.equal(buttons[0].disabled,true);
+assert.equal(buttons[0].disabled,false);
+assert.equal(buttons[1].disabled,false);
+assert.equal(buttons[9].disabled,true);
 assert.equal(buttons[11].disabled,false);
 console.log('PASS · actual state indicators, unknown OBS state, busy guard, media statelessness, PC actions with home disabled');
+

@@ -2,6 +2,7 @@ name: Windows verification
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 permissions:
   contents: read
@@ -17,9 +18,13 @@ jobs:
           node tests/smart-ui.cjs
       - name: Install external media tool for fixtures
         run: choco install ffmpeg --yes --no-progress
+      - name: Project skill persistence, recovery and desktop handoff guards
+        shell: pwsh
+        run: ./tests/test-skills.ps1
       - name: Smart-home protocol, recovery and media tests
         shell: pwsh
         run: ./tests/test-smart.ps1 -Ffmpeg (Get-Command ffmpeg.exe).Source
       - name: Compile native window regression harness
         shell: pwsh
         run: ./tests/test-windows.ps1 -CompileOnly
+

@@ -11,6 +11,7 @@ namespace MinaDesk {
         internal static readonly HashSet<string> Supported=new HashSet<string>{"pc_lock","media","volume_mute","screenshot","terminal","vscode","record"};
         readonly string file;
         readonly Action changed;
+        internal Func<string> ProjectFolder;
         readonly Timer timer=new Timer{Interval=2500};
         readonly ObsRecorder obs=new ObsRecorder();
         readonly HashSet<string> busy=new HashSet<string>();
@@ -48,8 +49,11 @@ namespace MinaDesk {
                     case "media":WindowsCommands.MediaKey();return "재생 / 정지 · 미디어 키 전송됨";
                     case "volume_mute":muted=SpeakerVolume.Toggle();return "볼륨 음소거 · "+(muted.Value?"켜짐":"꺼짐");
                     case "screenshot":return "스크린샷 · "+WindowsCommands.Screenshot(settings.ScreenshotFolder);
-                    case "terminal":ProjectLauncher.Terminal(settings.WorkingFolder);return "터미널 · 열기 요청됨 · "+settings.WorkingFolder;
-                    case "vscode":return OpenCode(owner);
+                    case "terminal":string folder=ProjectFolder==null?null:ProjectFolder();ProjectLauncher.Terminal(folder??settings.WorkingFolder);return "터미널 · Git Bash 또는 PowerShell 열기 요청됨";
+                    case "vscode":
+                        string project=ProjectFolder==null?null:ProjectFolder();
+                        if(project!=null){if(!Directory.Exists(project))throw new DirectoryNotFoundException("프로젝트 폴더를 다시 선택하세요.");ProjectLauncher.Code(settings,project);return "VS Code · 현재 프로젝트 열기 요청됨";}
+                        return OpenCode(owner);
                     case "record":
                         if(obsBusy)return "OBS 상태 확인 중입니다. 잠시 뒤 다시 누르세요.";
                         obsBusy=true;
@@ -93,3 +97,4 @@ namespace MinaDesk {
         public void Dispose(){disposed=true;timer.Dispose();}
     }
 }
+

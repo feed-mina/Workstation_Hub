@@ -75,8 +75,10 @@ namespace MinaDesk {
         }
         internal static void Terminal(string folder) {
             if(!Directory.Exists(folder))throw new DirectoryNotFoundException("작업 폴더를 매크로 설정에서 다시 선택하세요.");
-            string terminal=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Microsoft","WindowsApps","wt.exe");
-            if(File.Exists(terminal))Start(terminal,"-d "+Quote(folder),folder);
+            string terminal=new[]{Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"Git","git-bash.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),"Git","git-bash.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Programs","Git","git-bash.exe")}.FirstOrDefault(File.Exists);
+            if(terminal!=null)Start(terminal,"--cd="+Quote(folder),folder);
             else Start(Path.Combine(Environment.SystemDirectory,"WindowsPowerShell","v1.0","powershell.exe"),"-NoLogo -NoExit",folder);
         }
         static void Start(string executable,string arguments,string folder) {
@@ -86,3 +88,4 @@ namespace MinaDesk {
         }
     }
 }
+
