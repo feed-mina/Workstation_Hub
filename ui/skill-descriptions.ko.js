@@ -29,7 +29,7 @@
   const text=typeof original==='string'?original.trim():'';
   if(/[가-힣]/u.test(text))return text;
   const entry=entries[name];
-  if(entry&&text.toLocaleLowerCase().startsWith(entry[0].toLocaleLowerCase()))return entry[1];
+  if(Array.isArray(entry)&&text.toLocaleLowerCase().startsWith(entry[0].toLocaleLowerCase()))return entry[1];
   return '아직 한국어 용도 설명이 등록되지 않은 스킬입니다. 실행하면 설치된 SKILL.md의 지침과 이 버튼에 저장한 요청을 선택한 AI 앱에 전달합니다.';
  }
  window.skillDescriptionsKo=Object.freeze({describe});
