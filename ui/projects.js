@@ -11,6 +11,7 @@
   for(const id of ['github-login','local-project-add','project-github-tab','project-local-tab'])el(id).disabled=blocked;
   for(const id of ['github-refresh','github-logout','github-share-connect'])el(id).disabled=blocked||!gh.connected;
   el('github-login').disabled=blocked||!gh.available;
+  el('github-login').hidden=!!gh.connected;
   el('github-sync').disabled=blocked||!gh.shareReady;
   el('github-register').disabled=blocked||!selections.size||!gh.connected;
   el('project-settings').disabled=blocked||!p;

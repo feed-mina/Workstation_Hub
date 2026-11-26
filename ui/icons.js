@@ -834,3 +834,5 @@ window.deskIcons = {
   ]
  ]
 };
+window.deskIcons.upload = [['path',{d:'M12 16V3m-5 5 5-5 5 5M4 15v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5'}]];
+window.deskIcons['notebook-pen'] = [['path',{d:'M15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14v-9M7 7h4M7 11h2M13 15l7-7 2 2-7 7-3 1zM19 9l2 2'}]];

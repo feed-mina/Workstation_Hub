@@ -15,7 +15,7 @@ if (-not $SdkPath) {
 $dest=New-Item -ItemType Directory -Path $Destination -Force
 $csc=Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
 $libs=Join-Path $SdkPath 'lib/net462'
-$frameworkReferences=@('/reference:System.Net.Http.dll','/reference:System.Security.dll')
+$frameworkReferences=@('/reference:System.Net.Http.dll','/reference:System.Security.dll','/reference:System.Management.dll')
 $wpf=Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/WPF'
 foreach($name in @('UIAutomationClient.dll','UIAutomationTypes.dll','WindowsBase.dll')){$frameworkReferences+="/reference:$wpf/$name"}
 $files=Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.cs' | ForEach-Object FullName

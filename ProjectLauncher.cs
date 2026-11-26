@@ -71,7 +71,7 @@ namespace MinaDesk {
                     Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"Microsoft VS Code","Code.exe")}.FirstOrDefault(File.Exists);
             }
             if(String.IsNullOrEmpty(executable)||!File.Exists(executable))throw new FileNotFoundException("VS Code 설치 위치를 매크로 설정에서 지정하세요.");
-            Start(executable,project==null?"":Quote(project),settings.WorkingFolder);
+            Start(executable,project==null?"--new-window":Quote(project),project!=null && Directory.Exists(project)?project:settings.WorkingFolder);
         }
         internal static void Terminal(string folder) {
             if(!Directory.Exists(folder))throw new DirectoryNotFoundException("작업 폴더를 매크로 설정에서 다시 선택하세요.");
@@ -80,6 +80,12 @@ namespace MinaDesk {
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Programs","Git","git-bash.exe")}.FirstOrDefault(File.Exists);
             if(terminal!=null)Start(terminal,"--cd="+Quote(folder),folder);
             else Start(Path.Combine(Environment.SystemDirectory,"WindowsPowerShell","v1.0","powershell.exe"),"-NoLogo -NoExit",folder);
+        }
+        internal static string ToolFolder(string project,string fallback) {
+            if(!String.IsNullOrWhiteSpace(project)) {
+                if(!Directory.Exists(project))throw new DirectoryNotFoundException("연결한 프로젝트 폴더를 찾을 수 없습니다. 프로젝트 설정에서 다시 연결하세요.");return project;
+            }
+            return Directory.Exists(fallback)?fallback:Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         }
         static void Start(string executable,string arguments,string folder) {
             var info=new ProcessStartInfo(executable,arguments){UseShellExecute=false};

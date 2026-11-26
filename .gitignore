@@ -8,3 +8,5 @@
 **/client_secret*.json
 **/skill-workspaces.json*
 **/github-auth/
+**/browser-accounts.json*
+**/AccountProfiles/

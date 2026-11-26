@@ -100,7 +100,9 @@ namespace MinaDesk {
         }
         internal static void OpenDevicePage(){using(var page=Process.Start(new ProcessStartInfo("https://github.com/login/device"){UseShellExecute=true})){} }
         internal async Task User(CancellationToken stop) {
-            RequireSecureStorage();var response=await Send("user","GET",null,stop);response.RequireSuccess();var user=LocalData.Decode<Dictionary<string,object>>(response.Json);
+            RequireSecureStorage();var response=await Send("user","GET",null,stop);
+            if(response.Status==401){AccountId=0;LoginName=null;Repositories.Clear();}
+            response.RequireSuccess();var user=LocalData.Decode<Dictionary<string,object>>(response.Json);
             long id=GitHubValues.Long(user,"id");string login=GitHubValues.Text(user,"login");
             if(id<=0 || !Regex.IsMatch(login??"",@"\A[A-Za-z0-9-]+\z"))throw new InvalidOperationException("GitHub 계정을 확인하지 못했습니다.");
             if(AccountId!=id)Repositories.Clear();AccountId=id;LoginName=login;

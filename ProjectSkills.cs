@@ -21,6 +21,8 @@ namespace MinaDesk {
         int generation;
         bool disposed,loading,busy,restored;
         internal string Folder { get { return store.Current==null || store.Current.Location!="local"?null:store.Current.Folder; } }
+        internal string ToolFolder { get { return store.Current==null?null:store.Current.Folder; } }
+        internal bool HasProject { get { return store.Current!=null; } }
         internal ProjectSkills(string data,Action onChanged,Action<string,string> onLog) {
             store=new SkillWorkspaces(data);github=new GitHubProjects(data);sharing=new ProjectSharing(github,store);changed=onChanged;log=onLog;status=store.LoadNotice;
         }
@@ -45,7 +47,7 @@ namespace MinaDesk {
                     restored=true;
                     if(github.HasSession && !store.ReadOnly) {
                         busy=true;Notify();
-                        try {await github.User(stop.Token);if(store.Value.SyncAccountId==github.AccountId)await Synchronize();}
+                        try {await github.User(stop.Token);await github.List(stop.Token);if(store.Value.SyncAccountId==github.AccountId)await Synchronize();}
                         catch(Exception ex){status="GitHub 확인 필요 · "+ex.Message;}
                         finally{busy=false;}
                     }

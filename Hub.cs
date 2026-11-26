@@ -13,7 +13,7 @@ namespace MinaDesk {
     sealed class Hub : ApplicationContext {
         internal static readonly string[] Keys={"macro","pc","home","log"};
         internal static readonly string[] Titles={"매크로 패드","PC 성능","스마트홈","작업 기록"};
-        static readonly HashSet<string> MacroActions=new HashSet<string>{"work_start","work_end","volume_mute","vscode","terminal","record","media","screenshot","focus","light_toggle","ac_toggle","pc_lock"};
+        static readonly HashSet<string> MacroActions=new HashSet<string>{"work_start","work_end","volume_mute","vscode","terminal","record","media","screenshot","focus","light_toggle","ac_toggle","pc_lock","youtube_upload","naver_blog_upload"};
         internal readonly Dictionary<string,DeskWindow> Windows=new Dictionary<string,DeskWindow>();
         internal readonly Dictionary<string,ToolStripMenuItem> Toggles=new Dictionary<string,ToolStripMenuItem>();
         internal readonly Settings Config;
@@ -51,7 +51,8 @@ namespace MinaDesk {
             }
             commands=new MacroCommands(data,()=>{if(!ending)Broadcast();});
             skills=new ProjectSkills(data,()=>{if(!ending)Broadcast();},AddLog);
-            commands.ProjectFolder=()=>skills.Folder;
+            commands.ProjectFolder=()=>skills.ToolFolder;
+            commands.HasProject=()=>skills.HasProject;
             smart=new SmartHome(data,()=>{if(!ending)Broadcast();},AddLog);
             Chick=new Icon(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"chick.ico"));
             menu=new ContextMenuStrip{ShowCheckMargin=true,ShowImageMargin=false};
@@ -180,6 +181,7 @@ namespace MinaDesk {
             }
             if(type=="history-settings"&&sender.Key=="log"){ConfigureHistory(sender);return;}
             if(type=="macro-settings"&&sender.Key=="macro"){commands.Configure(sender);return;}
+            if(type=="account-settings"&&sender.Key=="macro"){commands.ConfigureAccounts(sender);return;}
             if(type=="smart-settings"&&sender.Key=="home"){smart.Configure(sender);return;}
             if(type=="smart"&&sender.Key=="home") {
                 string result;

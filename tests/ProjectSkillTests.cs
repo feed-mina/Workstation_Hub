@@ -75,6 +75,7 @@ static class ProjectSkillTests {
             Check(!DesktopSkillRunner.SameDraft(null,"hello"),"unreadable draft cannot send");
             Check(DesktopSkillRunner.IsSendName("전송") && !DesktopSkillRunner.IsSendName("Approve") && !DesktopSkillRunner.IsSendName("Allow folder access"),"permission controls cannot match Send");
             checks+=CloudProjectTests.Run(Path.Combine(root,"cloud"));
+            checks+=BrowserAccountTests.Run(Path.Combine(root,"browser-accounts"));
             Console.WriteLine("PASS · "+checks+" checks: project persistence/isolation, recovery, catalog scope, desktop links, exact draft/send guards and GitHub projects");return 0;
         }catch(Exception ex){Console.Error.WriteLine(ex);return 1;}
     }
