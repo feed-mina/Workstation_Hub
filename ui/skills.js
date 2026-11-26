@@ -8,6 +8,7 @@
  const current=()=>state?.projects.find(p=>p.id===state.selectedProjectId);
  const selected=()=>state?.catalog.find(s=>s.id===selectedId);
  const appName=target=>target==='gpt'?'GPT':'Claude';
+ const description=skill=>window.skillDescriptionsKo.describe(skill.name,skill.description);
  function projectPayload(extra={}){return {projectId:state?.selectedProjectId,...extra};}
  function request(type,detail={}){if(pending)return;pending=type;controls();post(type,detail);}
  function controls(){
@@ -26,13 +27,13 @@
   const skill=selected();
   el('skill-source').textContent=skill?.source||'스킬을 선택하세요';
   el('skill-name').textContent=skill?.name||'버튼 하나로 AI에 전달';
-  el('skill-description').textContent=skill?.description||'설치된 스킬을 고르면 이 프로젝트의 버튼으로 저장할 수 있어요.';
+  el('skill-description').textContent=skill?description(skill):'설치된 스킬을 고르면 이 프로젝트의 버튼으로 저장할 수 있어요.';
   controls();
  }
  function choose(skill){selectedId=skill.id;if(!editId)el('skill-label').value=skill.name;catalog();detail();}
  function catalog(){
   const query=el('skill-search').value.trim().toLocaleLowerCase();
-  const items=(state?.catalog||[]).filter(s=>(s.name+' '+s.description+' '+s.source).toLocaleLowerCase().includes(query));
+  const items=(state?.catalog||[]).filter(s=>(s.name+' '+description(s)+' '+s.description+' '+s.source).toLocaleLowerCase().includes(query));
   const pages=Math.max(1,Math.ceil(items.length/pageSize));page=Math.min(page,pages-1);
   el('skills-count').textContent=state?.catalog.length||0;
   el('skill-page').textContent=`${page+1} / ${pages}`;
@@ -42,7 +43,7 @@
   else if(!items.length)list.append(node('p',query?'검색 결과가 없습니다.':'설치된 스킬이 없습니다. 사용자 또는 프로젝트의 skills 폴더를 확인하세요.','empty'));
   for(const skill of items.slice(page*pageSize,(page+1)*pageSize)){
    const button=node('button',null,'skill-option');button.type='button';button.setAttribute('aria-pressed',String(skill.id===selectedId));
-   button.append(node('b',skill.name),node('small',skill.source),node('span',skill.description));button.onclick=()=>choose(skill);list.append(button);
+   button.append(node('b',skill.name),node('small',skill.source),node('span',description(skill)));button.onclick=()=>choose(skill);list.append(button);
   }
   el('skills-warning').textContent=state?.warnings.length?state.warnings.join(' '):'내 Codex·공용·Claude 스킬과 프로젝트의 skills 폴더를 확인합니다. 앱마다 사용 가능한 도구가 달라 실행 결과가 다를 수 있습니다.';
  }

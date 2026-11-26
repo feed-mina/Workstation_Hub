@@ -99,7 +99,7 @@ function sample(data){
 async function boot(){
  if(!Object.hasOwn(panels,key))return;
  $('title').textContent=panels[key];$('badge').textContent={pc:'실제 측정',home:'기기 시연',macro:'PC 명령',log:'이 PC'}[key];$(key).hidden=false;
- if(key==='macro'){await loadScript('icons.js');await loadScript('skills.js');setupKeys();window.projectSkills.setup();}
+ if(key==='macro'){await loadScript('icons.js');await loadScript('skill-descriptions.ko.js');await loadScript('skills.js');setupKeys();window.projectSkills.setup();}
  if(key==='pc')await loadScript('vendor/d3.min.js');
  if(key==='home'){setupHome();await loadScript('room.js');await loadScript('smart-home.js');$('badge').textContent='방별 연결';}
  if(key==='log')$('history-settings').onclick=()=>send('history-settings');
