@@ -8,20 +8,24 @@ using System.Windows.Forms;
 
 namespace MinaDesk {
     internal sealed class MacroCommands : IDisposable {
-        internal static readonly HashSet<string> Supported=new HashSet<string>{"pc_lock","media","volume_mute","screenshot","terminal","vscode","record"};
+        internal static readonly HashSet<string> Supported=new HashSet<string>{"pc_lock","media","volume_mute","screenshot","terminal","vscode","record","youtube_upload","naver_blog_upload"};
         readonly string file;
         readonly Action changed;
         internal Func<string> ProjectFolder;
+        internal Func<bool> HasProject;
         readonly Timer timer=new Timer{Interval=2500};
         readonly ObsRecorder obs=new ObsRecorder();
+        readonly BrowserAccounts accounts;
+        DateTime nextAccountCleanup;
         readonly HashSet<string> busy=new HashSet<string>();
         MacroSettings settings;
         bool disposed,obsBusy;bool? muted,recording;
         internal MacroCommands(string data,Action stateChanged) {
-            file=Path.Combine(data,"macros.json");settings=MacroSettings.Load(file);changed=stateChanged;
+            file=Path.Combine(data,"macros.json");settings=MacroSettings.Load(file);changed=stateChanged;accounts=new BrowserAccounts(data);
             timer.Tick+=async(s,e)=>await Refresh();
         }
-        internal object Snapshot(){return new{muted,recording,busy=busy.ToArray()};}
+        internal object Snapshot(){return new{muted,recording,busy=busy.ToArray(),accounts=new{mediaProvider=accounts.Value.MediaProvider,connections=BrowserAccounts.Keys.Select(key=>new{key,connected=accounts.Connected(key),alias=accounts.Get(key).Alias}).ToArray()}};}
+        internal void ConfigureAccounts(Form owner,string selected=null){using(var dialog=new AccountConnectionsDialog(accounts,selected??"media",changed))dialog.ShowDialog(owner);}
         internal void Sampling(bool enabled){if(disposed)return;if(enabled)timer.Start();else timer.Stop();}
         internal void Configure(Form owner) {
             using(var dialog=new MacroSettingsDialog(settings)) {
@@ -32,6 +36,7 @@ namespace MinaDesk {
         }
         internal async Task Refresh() {
             if(disposed)return;
+            if(DateTime.UtcNow>=nextAccountCleanup){nextAccountCleanup=DateTime.UtcNow.AddMinutes(1);try{accounts.Cleanup(AccountBrowser.Running);}catch(IOException){}catch(UnauthorizedAccessException){}}
             try{muted=SpeakerVolume.Read();}catch{muted=null;}
             changed();
             if(obsBusy)return;
@@ -46,13 +51,19 @@ namespace MinaDesk {
             try {
                 switch(id) {
                     case "pc_lock":WindowsCommands.Lock();return "PC 잠금 · 요청됨";
-                    case "media":WindowsCommands.MediaKey();return "재생 / 정지 · 미디어 키 전송됨";
+                    case "media":
+                        if(!accounts.Connected("media")){ConfigureAccounts(owner,"media");return accounts.Connected("media")?"재생용 계정 연결 완료 · 재생/정지 버튼을 다시 누르세요.":"재생용 계정 연결이 필요합니다.";}
+                        return accounts.Media();
+                    case "youtube_upload":case "naver_blog_upload":
+                        if(!accounts.Connected(id)){ConfigureAccounts(owner,id);return accounts.Connected(id)?BrowserAccounts.Name(id)+" 계정 연결 완료 · 버튼을 다시 눌러 화면을 여세요.":BrowserAccounts.Name(id)+" 계정 연결이 필요합니다.";}
+                        accounts.Open(id,false);return BrowserAccounts.Name(id)+" · 연결한 계정의 "+(id=="youtube_upload"?"업로드":"글쓰기")+" 화면 열기 요청됨";
                     case "volume_mute":muted=SpeakerVolume.Toggle();return "볼륨 음소거 · "+(muted.Value?"켜짐":"꺼짐");
                     case "screenshot":return "스크린샷 · "+WindowsCommands.Screenshot(settings.ScreenshotFolder);
-                    case "terminal":string folder=ProjectFolder==null?null:ProjectFolder();ProjectLauncher.Terminal(folder??settings.WorkingFolder);return "터미널 · Git Bash 또는 PowerShell 열기 요청됨";
+                    case "terminal":string folder=ProjectFolder==null?null:ProjectFolder();ProjectLauncher.Terminal(ProjectLauncher.ToolFolder(folder,settings.WorkingFolder));return folder==null?"터미널 · 기본 작업 폴더에서 Git Bash 또는 PowerShell 열기 요청됨":"터미널 · 현재 프로젝트에서 Git Bash 또는 PowerShell 열기 요청됨";
                     case "vscode":
                         string project=ProjectFolder==null?null:ProjectFolder();
                         if(project!=null){if(!Directory.Exists(project))throw new DirectoryNotFoundException("프로젝트 폴더를 다시 선택하세요.");ProjectLauncher.Code(settings,project);return "VS Code · 현재 프로젝트 열기 요청됨";}
+                        if(HasProject!=null && HasProject()){ProjectLauncher.Code(settings,null);return "VS Code · 로컬 폴더가 연결되지 않아 앱만 열기 요청됨";}
                         return OpenCode(owner);
                     case "record":
                         if(obsBusy)return "OBS 상태 확인 중입니다. 잠시 뒤 다시 누르세요.";

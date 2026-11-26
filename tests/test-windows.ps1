@@ -11,7 +11,7 @@ $tester=Join-Path $base 'DesktopSmoke.exe'
 $csc=Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
 $files=Get-ChildItem -LiteralPath $src -Filter '*.cs' | ForEach-Object FullName
 $wpf=Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/WPF'
-& $csc /nologo /target:winexe /platform:x64 /codepage:65001 /main:DesktopSmoke "/out:$tester" "/win32manifest:$src/app.manifest" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll /reference:System.Security.dll /reference:System.Net.Http.dll "/reference:$wpf/UIAutomationClient.dll" "/reference:$wpf/UIAutomationTypes.dll" "/reference:$wpf/WindowsBase.dll" "/reference:$base/Microsoft.Web.WebView2.Core.dll" "/reference:$base/Microsoft.Web.WebView2.WinForms.dll" $files (Join-Path $PSScriptRoot 'DesktopSmoke.cs')
+& $csc /nologo /target:winexe /platform:x64 /codepage:65001 /main:DesktopSmoke "/out:$tester" "/win32manifest:$src/app.manifest" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll /reference:System.Security.dll /reference:System.Net.Http.dll /reference:System.Management.dll "/reference:$wpf/UIAutomationClient.dll" "/reference:$wpf/UIAutomationTypes.dll" "/reference:$wpf/WindowsBase.dll" "/reference:$base/Microsoft.Web.WebView2.Core.dll" "/reference:$base/Microsoft.Web.WebView2.WinForms.dll" $files (Join-Path $PSScriptRoot 'DesktopSmoke.cs')
 if ($LASTEXITCODE -ne 0) {throw 'Test build failed'}
 if ($CompileOnly) {Write-Output $tester;return}
 foreach ($phase in @('initial','reopen')) {

@@ -15,7 +15,7 @@ if (-not $SdkPath) {
 $dest=New-Item -ItemType Directory -Path $Destination -Force
 $csc=Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
 $libs=Join-Path $SdkPath 'lib/net462'
-$frameworkReferences=@('/reference:System.Net.Http.dll','/reference:System.Security.dll')
+$frameworkReferences=@('/reference:System.Net.Http.dll','/reference:System.Security.dll','/reference:System.Management.dll')
 $wpf=Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/WPF'
 foreach($name in @('UIAutomationClient.dll','UIAutomationTypes.dll','WindowsBase.dll')){$frameworkReferences+="/reference:$wpf/$name"}
 $files=Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.cs' | ForEach-Object FullName
@@ -25,5 +25,6 @@ if ($LASTEXITCODE -ne 0){throw 'Compilation failed'}
 foreach($f in @('Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll')){Copy-Item -LiteralPath (Join-Path $libs $f) -Destination $dest.FullName -Force}
 Copy-Item -LiteralPath (Join-Path $SdkPath 'runtimes/win-x64/native/WebView2Loader.dll') -Destination $dest.FullName -Force
 foreach($name in @('ui','licenses','chick.ico','README.md','LICENSE.md')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $dest.FullName -Recurse -Force}
+& (Join-Path $PSScriptRoot 'prepare-github.ps1') -Destination $dest.FullName
 Write-Output $exe
 

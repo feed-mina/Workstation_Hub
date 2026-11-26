@@ -9,7 +9,8 @@ function loadScript(path){return new Promise((resolve,reject)=>{const tag=docume
 const definitions=[
  ['work_start','업무 시작','work-cycle · AI','rocket'],['work_end','퇴근 · 잠금','PC 잠금','moon'],['volume_mute','볼륨 음소거','PC 소리','volume-x'],['vscode','VS Code','프로젝트','code-2'],
  ['terminal','터미널','Git Bash','terminal-square'],['record','녹화 시작','OBS','video'],['media','재생 / 정지','미디어','play'],['screenshot','스크린샷','화면','camera'],
- ['focus','집중 표시','허브 표시만','bell-off'],['skills','스킬','프로젝트별 등록','code-2'],['pc_lock','PC 잠금','Windows','lock']
+ ['focus','집중 표시','허브 표시만','bell-off'],['skills','스킬','프로젝트별 등록','code-2'],['pc_lock','PC 잠금','Windows','lock'],
+ ['youtube_upload','유튜브 업로드','업로드 계정 연결','upload'],['naver_blog_upload','네이버 블로그 업로드','글쓰기 계정 연결','notebook-pen']
 ];
 const labels=new Map();let editing=false,selected=null,model=null,noticeTimer,chartHistory=[],lastLogId=0;
 function announce(text){$('notice').textContent=text;clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>$('notice').textContent='',6500);}
@@ -38,6 +39,7 @@ function setupKeys(){
  $('apply').onclick=()=>{const label=$('key-name').value.trim().slice(0,24);if(!label)return;$('keys').querySelector('[data-key="'+selected+'"] b').textContent=label;labels.set(selected,label);try{localStorage.setItem('key-names',JSON.stringify(Object.fromEntries(labels)))}catch{}$('editor').close();};
  $('key-name').onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing)$('apply').click();};$('cancel').onclick=()=>$('editor').close();
  $('macro-settings').onclick=()=>send('macro-settings');
+ $('account-settings').onclick=()=>send('account-settings');
 }
 function paint(state){
  model=state;const h=state.home;
@@ -46,6 +48,7 @@ function paint(state){
    $('mode').textContent=state.mode+' 모드';
    const lit=new Set(state.active);if(state.mode==='업무')lit.add('work_start');if(state.mode==='퇴근')lit.add('work_end');if(h.lamp||h.bar)lit.add('light_toggle');if(h.ac)lit.add('ac_toggle');
    const native=state.macro||{},busy=new Set(native.busy||[]);
+   const project=state.skills?.projects?.find(p=>p.id===state.skills.selectedProjectId),connections=native.accounts?.connections||[],connected=id=>connections.find(a=>a.key===id)?.connected===true;
    if(native.muted===true)lit.add('volume_mute');if(native.recording===true)lit.add('record');
    for(const b of $('keys').querySelectorAll('.key')){
      const id=b.dataset.key,active=lit.has(id);
@@ -56,8 +59,14 @@ function paint(state){
      if(id==='volume_mute')b.querySelector('small').textContent=native.muted==null?'상태 확인 대기':native.muted?'음소거 중':'소리 켜짐';
      if(id==='record')b.querySelector('small').textContent=native.recording==null?'OBS 미연결':native.recording?'녹화 중':'녹화 대기';
      if(id==='record'&&labels.get(id)==='녹화 시작')b.querySelector('b').textContent=native.recording===true?'녹화 정지':'녹화 시작';
+     if(id==='vscode')b.querySelector('small').textContent=project?.folder?'현재 프로젝트':project?'앱 열기':'프로젝트 선택';
+     if(id==='terminal')b.querySelector('small').textContent=project?.folder?'프로젝트 · Git Bash':'Git Bash';
+     if(id==='media')b.querySelector('small').textContent=connected('media')?(native.accounts.mediaProvider==='music'?'YouTube Music':'YouTube'):'재생 계정 연결';
+     if(id==='youtube_upload')b.querySelector('small').textContent=connected(id)?'연결 계정 · 업로드 화면':'업로드 계정 연결';
+     if(id==='naver_blog_upload')b.querySelector('small').textContent=connected(id)?'연결 계정 · 글쓰기 화면':'네이버 계정 연결';
    }
    if(window.projectSkills)window.projectSkills.render(state.skills);
+   if(window.projectConnections)window.projectConnections.render(state.skills);
  }
  if(key==='home'){
    if(window.smartHomeView)window.smartHomeView.render(state.smart);
@@ -99,7 +108,7 @@ function sample(data){
 async function boot(){
  if(!Object.hasOwn(panels,key))return;
  $('title').textContent=panels[key];$('badge').textContent={pc:'실제 측정',home:'기기 시연',macro:'PC 명령',log:'이 PC'}[key];$(key).hidden=false;
- if(key==='macro'){await loadScript('icons.js');await loadScript('skills.js');setupKeys();window.projectSkills.setup();}
+ if(key==='macro'){await loadScript('icons.js');await loadScript('skill-descriptions.ko.js');await loadScript('skills.js');await loadScript('projects.js');setupKeys();window.projectSkills.setup();window.projectConnections.setup();}
  if(key==='pc')await loadScript('vendor/d3.min.js');
  if(key==='home'){setupHome();await loadScript('room.js');await loadScript('smart-home.js');$('badge').textContent='방별 연결';}
  if(key==='log')$('history-settings').onclick=()=>send('history-settings');
@@ -112,7 +121,7 @@ async function boot(){
      if(signature!==lastLogId){lastLogId=signature;$('history').replaceChildren();$('count').textContent='기록 없음';data.items.forEach(addLog);}
    }
    if(data.kind==='notice')announce(data.text);
-   if(data.kind==='skills-result'&&key==='macro')window.projectSkills.result(data.action);
+   if(data.kind==='skills-result'&&key==='macro'){window.projectSkills.result(data.action);window.projectConnections.result(data.action);}
  });
  send('ready');
 }

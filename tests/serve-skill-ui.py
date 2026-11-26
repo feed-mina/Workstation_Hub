@@ -15,8 +15,8 @@ parser.add_argument('--port', type=int, default=8942)
 args = parser.parse_args()
 ui = Path(__file__).resolve().parent.parent / 'ui'
 catalog = []
-for kind in ('.codex', '.agents', '.claude'):
-    root = Path.home() / kind / 'skills'
+for root in (Path.home() / '.codex' / 'skills', Path.home() / '.codex' / 'skills' / '.system',
+             Path.home() / '.agents' / 'skills', Path.home() / '.claude' / 'skills'):
     for file in sorted(root.glob('*/SKILL.md')):
         text = file.read_text(encoding='utf-8-sig')
         description = re.search(r'(?m)^description:[ \t]*(.*)', text)
