@@ -123,8 +123,7 @@ jobs:
           script: |
             ./android/gradlew -p android --no-daemon connectedDebugAndroidTest
             mkdir -p android/app/build/emulator-screenshots
-            adb exec-out run-as com.minadesk.workstationhub tar -cf - -C cache release-smoke > "$RUNNER_TEMP/emulator-screenshots.tar"
-            tar -xf "$RUNNER_TEMP/emulator-screenshots.tar" -C android/app/build/emulator-screenshots/
+            adb pull /sdcard/Pictures/WorkstationHubSmoke/. android/app/build/emulator-screenshots/
       - name: Upload device checks and captures
         if: always()
         uses: actions/upload-artifact@v4

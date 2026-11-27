@@ -2,12 +2,14 @@ package com.minadesk.workstationhub
 
 import android.app.Activity
 import android.content.Intent
+import android.content.ContentValues
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.net.Uri
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
+import android.provider.MediaStore
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
@@ -57,9 +59,23 @@ class ReleaseSmokeTest {
     private fun screenshot(name: String) {
         val bitmap = instrumentation.uiAutomation.takeScreenshot()
         assertNotNull(bitmap)
-        val directory = File(instrumentation.targetContext.cacheDir, "release-smoke").apply { mkdirs() }
-        File(directory, "${name}-api${Build.VERSION.SDK_INT}.png")
-            .outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        // Gradle uninstalls the test app after the run. Keep test-only captures in shared media.
+        if (Build.VERSION.SDK_INT >= 29) {
+            val resolver = instrumentation.targetContext.contentResolver
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, "${name}-api${Build.VERSION.SDK_INT}.png")
+                put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/WorkstationHubSmoke")
+                put(MediaStore.Images.Media.IS_PENDING, 1)
+            }
+            val uri = requireNotNull(resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values))
+            requireNotNull(resolver.openOutputStream(uri)).use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            values.clear(); values.put(MediaStore.Images.Media.IS_PENDING, 0)
+            resolver.update(uri, values, null, null)
+        } else {
+            val directory = File(instrumentation.targetContext.cacheDir, "release-smoke").apply { mkdirs() }
+            File(directory, "${name}-api${Build.VERSION.SDK_INT}.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        }
         bitmap.recycle()
     }
 
