@@ -2,9 +2,9 @@ name: Android build
 on:
   push:
     branches: [mobile]
-    paths: ['android/**', 'ui/**', 'tests/mobile-*.cjs', '.github/workflows/android.yml']
+    paths: ['android/**', 'ui/**', 'tests/mobile-*.cjs', 'tools/android-policy.cjs', 'tools/verify-android-bundle.py', 'docs/privacy-android.md', '.github/workflows/android.yml']
   pull_request:
-    paths: ['android/**', 'ui/**', 'tests/mobile-*.cjs', '.github/workflows/android.yml']
+    paths: ['android/**', 'ui/**', 'tests/mobile-*.cjs', 'tools/android-policy.cjs', 'tools/verify-android-bundle.py', 'docs/privacy-android.md', '.github/workflows/android.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -21,6 +21,7 @@ jobs:
           node tests/macro-ui.cjs
           node tests/hardware-ai-ui.cjs
           node tests/smart-ui.cjs
+          node tools/android-policy.cjs --check
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -32,13 +33,36 @@ jobs:
         run: |
           log="$RUNNER_TEMP/android-gradle.log"
           for attempt in 1 2 3 4; do
-            if ./gradlew --no-daemon testDebugUnitTest assembleDebug lintDebug 2>&1 | tee "$log"; then exit 0; fi
+            if ./gradlew --no-daemon testDebugUnitTest assembleDebug bundleRelease lintDebug lintRelease 2>&1 | tee "$log"; then exit 0; fi
             # Compile/test failures need a fix; retry only transient dependency/network failures.
             if ! grep -Eq '429|Could not (GET|HEAD)|Could not resolve|Read timed out' "$log"; then exit 1; fi
             echo "::warning::Gradle attempt $attempt failed; retrying after backoff"
             sleep $((attempt * 60))
           done
           exit 1
+      - name: Validate release bundle
+        run: python tools/verify-android-bundle.py android/app/build/outputs/bundle/release/app-release.aab
+      - name: Save unsigned release candidate
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-candidate"
+          cp android/app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/release-candidate/WorkstationHub-0.9.1-unsigned.aab"
+      - name: Verify signing configuration with a disposable CI key
+        working-directory: android
+        run: |
+          export HUB_UPLOAD_STORE_FILE="$RUNNER_TEMP/ci-smoke-upload.p12"
+          export HUB_UPLOAD_STORE_PASSWORD="$(openssl rand -hex 24)"
+          export HUB_UPLOAD_KEY_ALIAS=ci-smoke
+          export HUB_UPLOAD_KEY_PASSWORD="$HUB_UPLOAD_STORE_PASSWORD"
+          keytool -genkeypair -noprompt -storetype PKCS12 -keystore "$HUB_UPLOAD_STORE_FILE" -storepass:env HUB_UPLOAD_STORE_PASSWORD -keypass:env HUB_UPLOAD_KEY_PASSWORD -alias "$HUB_UPLOAD_KEY_ALIAS" -keyalg RSA -keysize 3072 -validity 10000 -dname "CN=Disposable CI signing smoke test"
+          ./gradlew --no-daemon bundleRelease -PhubRequireSigning=true
+          jarsigner -verify app/build/outputs/bundle/release/app-release.aab
+          # Do not publish this temporary signature as a production release.
+      - name: Upload unsigned release candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: WorkstationHub-release-unsigned-aab
+          path: ${{ runner.temp }}/release-candidate/WorkstationHub-0.9.1-unsigned.aab
+          if-no-files-found: error
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -50,7 +74,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-lint
-          path: android/app/build/reports/lint-results-debug.html
+          path: android/app/build/reports/lint-results-*.html
           if-no-files-found: ignore
       - name: Upload unit test results
         if: always()
@@ -61,3 +85,45 @@ jobs:
             android/app/build/reports/tests/testDebugUnitTest
             android/app/build/test-results/testDebugUnitTest
           if-no-files-found: ignore
+  emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [30, 36]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Exercise installed Android app
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          ram-size: 2048M
+          disable-animations: true
+          script: |
+            ./android/gradlew -p android --no-daemon connectedDebugAndroidTest
+            mkdir -p android/app/build/emulator-screenshots
+            adb pull /sdcard/Android/data/com.minadesk.workstationhub.test/files/. android/app/build/emulator-screenshots/
+      - name: Upload device checks and captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-emulator-api-${{ matrix.api }}
+          path: |
+            android/app/build/reports/androidTests
+            android/app/build/outputs/androidTest-results
+            android/app/build/emulator-screenshots
+          if-no-files-found: warn

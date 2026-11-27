@@ -19,3 +19,11 @@
 /android/.kotlin/
 /android/*.iml
 /android/.idea/
+# Google Play upload keys and local signing configuration
+**/*.jks
+**/*.keystore
+**/*.p12
+**/*.pfx
+**/*.password.dpapi
+/android/keystore.properties
+/android/signing.env

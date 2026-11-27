@@ -30,7 +30,7 @@ internal class Hub(private val app: Application) {
     companion object {
         val KEYS = listOf("macro", "pc", "home", "log", "dev", "widgets")
         val TITLES = listOf("매크로", "성능", "스마트홈", "기록", "개발자", "위젯")
-        const val VERSION = "0.9.0"
+        const val VERSION = BuildConfig.VERSION_NAME
         private val MACRO_ACTIONS = setOf("work_start", "work_end", "volume_mute", "vscode", "terminal", "record", "media", "screenshot", "focus", "light_toggle", "ac_toggle", "pc_lock", "youtube_upload", "naver_blog_upload")
         private val PC_ONLY_MACROS = setOf("vscode", "terminal", "record", "screenshot", "pc_lock")
         private val SKILL_MESSAGES = setOf("skills-open", "skills-refresh", "skill-project-add", "skill-project-select", "skill-start-apps", "skill-save", "skill-remove", "skill-run", "skill-button-options", "github-login", "github-cancel", "github-refresh", "github-logout", "github-share-connect", "github-sync", "github-register", "project-config", "project-bind", "project-conflict", "project-open-app")

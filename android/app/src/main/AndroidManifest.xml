@@ -20,7 +20,13 @@
         android:theme="@style/Theme.Hub"
         android:networkSecurityConfig="@xml/network_security_config">
         <activity
+            android:name=".AboutActivity"
+            android:exported="false"
+            android:label="앱 정보 · 개인정보"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".MainActivity"
+            android:enableOnBackInvokedCallback="true"
             android:exported="true"
             android:launchMode="singleTask"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"

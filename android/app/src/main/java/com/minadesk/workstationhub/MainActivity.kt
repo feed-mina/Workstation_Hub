@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
+import android.os.Build
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -12,6 +13,9 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Button
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 
 /**
  * 데스크톱의 여섯 창을 하단 탭 여섯 개로 보여 줍니다. 각 탭은 같은 desk.html 을 `?panel=키` 로 띄운 WebView 이며,
@@ -25,6 +29,7 @@ class MainActivity : Activity(), HubHost {
     private val panels = HashMap<String, PanelView>()
     private val tabViews = HashMap<String, TextView>()
     private var current: String? = null
+    private var backCallback: OnBackInvokedCallback? = null
 
     override val activity: Activity get() = this
 
@@ -32,6 +37,13 @@ class MainActivity : Activity(), HubHost {
         super.onCreate(savedInstanceState)
         hub = (application as HubApplication).hub
         root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val appBar = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(12), 0, dp(8), 0) }
+        appBar.addView(TextView(this).apply { text = "Mini Workstation Hub"; setTextColor(Color.WHITE); textSize = 14f }, LinearLayout.LayoutParams(0, dp(48), 1f))
+        appBar.addView(Button(this).apply {
+            text = "앱 정보"; contentDescription = "앱 정보 및 개인정보처리방침"
+            setOnClickListener { startActivity(Intent(this@MainActivity, AboutActivity::class.java)) }
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48)))
+        root.addView(appBar)
         container = FrameLayout(this)
         root.addView(container, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         tabs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -52,6 +64,11 @@ class MainActivity : Activity(), HubHost {
         root.applyHubInsets()
         applyTheme(hub.theme)
         showPanel(savedInstanceState?.getString("tab") ?: getPreferences(MODE_PRIVATE).getString("tab", "macro") ?: "macro")
+        if (Build.VERSION.SDK_INT >= 33) {
+            backCallback = OnBackInvokedCallback { handleBack() }.also {
+                onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, it)
+            }
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) { super.onSaveInstanceState(outState); current?.let { outState.putString("tab", it) } }
@@ -73,6 +90,8 @@ class MainActivity : Activity(), HubHost {
     }
 
     override fun onDestroy() {
+        if (Build.VERSION.SDK_INT >= 33) backCallback?.let { onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it) }
+        backCallback = null
         for ((key, panel) in panels) { hub.detach(key); (panel.parent as? ViewGroup)?.removeView(panel); panel.destroy() }
         panels.clear()
         super.onDestroy()
@@ -121,9 +140,13 @@ class MainActivity : Activity(), HubHost {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
+        handleBack()
+    }
+
+    private fun handleBack() {
         val panel = current?.let { panels[it] }
-        if (panel == null) { @Suppress("DEPRECATION") super.onBackPressed(); return }
-        panel.closeDialog { closed -> if (!closed) moveTaskToBack(true) }
+        if (panel == null) { moveTaskToBack(true); return }
+        panel.closeDialog { closed -> if (!closed && !isFinishing && !isDestroyed) moveTaskToBack(true) }
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density + 0.5f).toInt()
