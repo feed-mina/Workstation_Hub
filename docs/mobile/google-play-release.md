@@ -63,3 +63,7 @@ Open-Meteo 자료 사용 조건과 표시 의무, 상업적 배포 해당 여부
 1~2의 성공은 3~5의 성공을 뜻하지 않는다. 이 작업은 계정 생성·결제·스토어 제출을 수행하지 않는다.
 
 공식 근거: [대상 API](https://developer.android.com/google/play/requirements/target-sdk), [AGP 호환성](https://developer.android.com/build/releases/agp-8-10-0-release-notes), [Android 16 동작 변경](https://developer.android.com/about/versions/16/behavior-changes-16), [앱 서명](https://developer.android.com/studio/publish/app-signing), [Data safety](https://support.google.com/googleplay/android-developer/answer/10787469?hl=en), [개인 계정 시험](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en), [Open-Meteo 약관](https://open-meteo.com/en/terms).
+
+## 스토어 소개와 이미지 초안
+
+`play-listing.ko-KR.json`에 제목·짧은 소개·전체 설명·정책 URL·심사용 접근 준비 항목을 정리했습니다. `play-assets`에는 규격에 맞춘 아이콘과 소개 이미지 PNG 및 SVG 원본이 있습니다. 실제 화면은 가상 기기 검사 산출물에서 확인합니다. 공개 지원 이메일·계정 유형·가격·국가·연령 대상·Data safety와 심사용 접근의 최종 확인은 남아 있습니다. 무료 Open-Meteo API의 비상업적 이용 조건도 선택할 판매 방식과 대조해야 합니다.

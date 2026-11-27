@@ -57,7 +57,8 @@ class ReleaseSmokeTest {
     private fun screenshot(name: String) {
         val bitmap = instrumentation.uiAutomation.takeScreenshot()
         assertNotNull(bitmap)
-        File(instrumentation.context.getExternalFilesDir(null), "${name}-api${Build.VERSION.SDK_INT}.png")
+        val directory = File(instrumentation.targetContext.cacheDir, "release-smoke").apply { mkdirs() }
+        File(directory, "${name}-api${Build.VERSION.SDK_INT}.png")
             .outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
     }

@@ -63,6 +63,13 @@ jobs:
           name: WorkstationHub-release-unsigned-aab
           path: ${{ runner.temp }}/release-candidate/WorkstationHub-0.9.1-unsigned.aab
           if-no-files-found: error
+      - name: Reject missing or partial upload credentials
+        working-directory: android
+        run: |
+          if ./gradlew --no-daemon -q help -PhubRequireSigning=true > "$RUNNER_TEMP/missing-signing.log" 2>&1; then exit 1; fi
+          grep -q 'upload key is not configured' "$RUNNER_TEMP/missing-signing.log"
+          if HUB_UPLOAD_KEY_ALIAS=incomplete ./gradlew --no-daemon -q help > "$RUNNER_TEMP/partial-signing.log" 2>&1; then exit 1; fi
+          grep -q 'requires all four' "$RUNNER_TEMP/partial-signing.log"
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -116,7 +123,8 @@ jobs:
           script: |
             ./android/gradlew -p android --no-daemon connectedDebugAndroidTest
             mkdir -p android/app/build/emulator-screenshots
-            adb pull /sdcard/Android/data/com.minadesk.workstationhub.test/files/. android/app/build/emulator-screenshots/
+            adb exec-out run-as com.minadesk.workstationhub tar -cf - -C cache release-smoke > "$RUNNER_TEMP/emulator-screenshots.tar"
+            tar -xf "$RUNNER_TEMP/emulator-screenshots.tar" -C android/app/build/emulator-screenshots/
       - name: Upload device checks and captures
         if: always()
         uses: actions/upload-artifact@v4

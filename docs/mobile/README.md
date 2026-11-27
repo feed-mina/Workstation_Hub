@@ -5,10 +5,16 @@ Windows 허브의 여섯 창을 휴대폰의 **하단 탭 여섯 개**로 옮긴
 | 항목 | 내용 |
 |---|---|
 | 소스 | `android/` (Gradle · Kotlin · 외부 라이브러리 없음, Android 프레임워크 API 와 Kotlin 표준 라이브러리만 사용) |
-| 지원 | Android 8.0 (API 26) 이상 · targetSdk 35 |
-| 패키지 | `com.minadesk.workstationhub` · 버전 0.9.0.0 (Windows 0.9.0.0 과 같은 기능 세대) |
-| 빌드 | GitHub Actions **Android build** 워크플로가 `mobile` 브랜치 푸시마다 디버그 APK 를 산출물(`WorkstationHub-debug-apk`)로 올립니다. 로컬은 Android Studio 또는 `cd android && ./gradlew assembleDebug` |
+| 지원 | Android 8.0 (API 26) 이상 · targetSdk 36 |
+| 패키지 | `com.minadesk.workstationhub` · 버전 0.9.1 · 내부 버전 901 |
+| 빌드 | GitHub Actions **Android build** 워크플로가 `mobile` 브랜치 푸시마다 디버그 APK 를 산출물(`WorkstationHub-debug-apk`)로 올립니다. Play용 후보 AAB도 생성합니다. 실제 제출 파일에는 별도 업로드 키 서명이 필요합니다. 로컬은 Android Studio 또는 `cd android && ./gradlew assembleDebug` |
 | 검사 | `node tests/mobile-bridge.cjs`, `node tests/mobile-behavior.cjs` · `./gradlew testDebugUnitTest assembleDebug lintDebug` |
+
+## Google Play 배포 준비 (0.9.1)
+
+Android 16 대상 설정과 뒤로가기 대응, 앱 상단의 앱 정보·오프라인 개인정보 안내, 공개 정책 문서, 업로드 키 서명 설정을 추가했습니다. CI는 release AAB·두 빌드 유형 lint·서명 설정 및 Android 11/16 가상 기기 검사를 포함합니다.
+
+[출시 준비와 남은 소유자 확인](google-play-release.md) · [소개문 초안](play-listing.ko-KR.json) · [이미지 초안](play-assets/README.md) · [공개 Android 개인정보 안내](../privacy-android.md)
 
 ## 1. 구조
 
