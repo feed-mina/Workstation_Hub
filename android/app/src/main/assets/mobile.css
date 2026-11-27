@@ -1,0 +1,30 @@
+/* Android WebView 전용 덧씌움. 데스크톱 style.css 뒤에 읽히며 PC 전용 조작을 숨기고 손가락 크기에 맞춥니다. */
+html.android{font-size:15px;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+html.android body{min-height:100svh;padding-bottom:max(12px,env(safe-area-inset-bottom))}
+html.android header{padding:11px 14px 9px;position:sticky;top:0;z-index:5}
+html.android main{padding:12px 13px 20px}
+html.android button{min-height:38px;padding:7px 12px}
+html.android .section-label button{min-height:32px}
+html.android input,html.android select,html.android textarea{font-size:15px}
+html.android .key{min-height:92px;gap:5px;padding:9px 4px}
+html.android .key b{font-size:12.5px}
+html.android .key small{font-size:10px}
+html.android .key svg{width:23px;height:23px}
+html.android .keys{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+@media(min-width:560px){html.android .keys{grid-template-columns:repeat(4,minmax(0,1fr))}}
+/* 휴대폰에서 실행할 수 없는 PC 명령 · 프로젝트/스킬 버튼 (Windows 허브 전용) */
+html.android .key[data-key=vscode],html.android .key[data-key=terminal],html.android .key[data-key=record],
+html.android .key[data-key=screenshot],html.android .key[data-key=pc_lock],html.android .key[data-key=skills],
+html.android .project-bar,html.android #project-context,html.android .skill-section-title,html.android #skill-empty,
+html.android #project-skill-keys,html.android #skill-status,html.android #account-settings{display:none!important}
+html.android .assistant small::after{content:" 휴대폰에서는 PC 명령 대신 이 기기의 소리·미디어와 웹 화면을 다룹니다."}
+/* 스마트홈 · 영상 보관 카드는 PC 의 ffmpeg·폴더가 필요해 숨깁니다. */
+html.android #smart-cards>.device-card:nth-of-type(4){display:none}
+html.android .room-tabs button{min-height:40px}
+html.android .device-controls button{min-height:44px;font-size:13px}
+/* 개발자 컨트롤 · 창 배치는 Windows 창 전용 */
+html.android .dev-layout-control,html.android #dev-windows,html.android .dev-context-fields{display:none!important}
+html.android .dev-card{min-height:88px}
+html.android dialog{width:min(96vw,620px);max-height:94svh}
+html.android #notice{bottom:calc(14px + env(safe-area-inset-bottom));font-size:13px;padding:8px 12px}
+html.android #history li{grid-template-columns:minmax(74px,22%) minmax(60px,18%) minmax(0,1fr);font-size:13px}

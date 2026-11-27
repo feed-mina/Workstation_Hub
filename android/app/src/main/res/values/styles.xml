@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="hub_background">#102F28</color>
+    <color name="hub_bar">#173B32</color>
+    <color name="hub_text">#F5F2DE</color>
+    <style name="Theme.Hub" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/hub_background</item>
+        <item name="android:colorPrimary">@color/hub_bar</item>
+        <item name="android:colorPrimaryDark">@color/hub_background</item>
+        <item name="android:colorAccent">#B8F392</item>
+        <item name="android:statusBarColor">@color/hub_bar</item>
+        <item name="android:navigationBarColor">@color/hub_bar</item>
+        <item name="android:textColorPrimary">@color/hub_text</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

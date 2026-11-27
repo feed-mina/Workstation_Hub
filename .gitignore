@@ -11,3 +11,11 @@
 **/browser-accounts.json*
 **/AccountProfiles/
 **/developer-console.json*
+# Android (mobile 브랜치)
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/local.properties
+/android/.kotlin/
+/android/*.iml
+/android/.idea/
