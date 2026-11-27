@@ -1,0 +1,46 @@
+name: Android build
+on:
+  push:
+    branches: [mobile]
+    paths: ['android/**', 'ui/**', 'tests/mobile-bridge.cjs', '.github/workflows/android.yml']
+  pull_request:
+    paths: ['android/**', 'ui/**', 'tests/mobile-bridge.cjs', '.github/workflows/android.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bridge shim regression
+        run: node tests/mobile-bridge.cjs
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build debug APK
+        working-directory: android
+        # Maven Central 이 일시적으로 429 를 돌려주는 날이 있어 의존성 해결을 최대 4번 재시도합니다.
+        run: |
+          for attempt in 1 2 3 4; do
+            if ./gradlew --no-daemon assembleDebug lintDebug; then exit 0; fi
+            echo "::warning::Gradle attempt $attempt failed; retrying after backoff"
+            sleep $((attempt * 60))
+          done
+          exit 1
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: WorkstationHub-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-lint
+          path: android/app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore

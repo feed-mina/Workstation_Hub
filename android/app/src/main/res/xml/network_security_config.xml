@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home Assistant 는 집 안 LAN 에서 http://192.168.x.x:8123 처럼 평문 주소를 쓰는 경우가 많아 사용자가 입력한 주소의 평문 연결을 허용합니다.
+     Open-Meteo 와 웹 바로가기는 https 만 사용합니다. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors><certificates src="system" /></trust-anchors>
+    </base-config>
+</network-security-config>

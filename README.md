@@ -1,5 +1,14 @@
 # Mini Workstation Hub
 
+## Android 버전 · `mobile` 브랜치
+
+Windows 허브의 여섯 창을 휴대폰의 하단 탭 여섯 개로 옮긴 Android 앱을 `android/` 폴더에 추가했습니다. 화면은 데스크톱과 같은 `ui/` 파일을 그대로 쓰고, Kotlin 쪽이 WebView2 호스트를 대신합니다. 휴대폰에서는 Home Assistant 방별 제어, 이 기기의 성능 실측, 작업 기록, 웹앱·Codex 요청 복사, Open-Meteo 날씨, 미디어 키·음소거를 사용하며 PC 잠금·OBS·스크린샷·GitHub 조회·영상 보관은 Windows 허브 전용입니다. GitHub Actions **Android build** 가 디버그 APK 를 산출물로 올립니다. [Android 버전 안내](docs/mobile/README.md)
+
+```powershell
+node tests/mobile-bridge.cjs
+cd android; .\gradlew assembleDebug
+```
+
 ## 0.9.0.0 · 하드웨어 수치, AI 계정, Codex 모델 비교
 
 - **PC 성능**에 GPU 사용률, GPU 전용·공유 메모리, CPU·GPU 온도를 상시 표시합니다. Windows에서 받은 GPU 수치는 가장 바쁜 엔진과 어댑터 메모리 합계입니다. 온도는 Windows 그래픽 드라이버 또는 실행 중인 LibreHardwareMonitor가 실제 센서 데이터를 제공할 때 표시합니다. [Windows 어댑터 성능 데이터](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/d3dkmthk/ns-d3dkmthk-_d3dkmt_adapter_perfdata)
