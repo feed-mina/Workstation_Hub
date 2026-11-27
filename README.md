@@ -1,5 +1,11 @@
 # Mini Workstation Hub
 
+## 0.9.0.0 · 하드웨어 수치, AI 계정, Codex 모델 비교
+
+- **PC 성능**에 GPU 사용률, GPU 전용·공유 메모리, CPU·GPU 온도를 상시 표시합니다. Windows에서 받은 GPU 수치는 가장 바쁜 엔진과 어댑터 메모리 합계입니다. 온도는 Windows 그래픽 드라이버 또는 실행 중인 LibreHardwareMonitor가 실제 센서 데이터를 제공할 때 표시합니다. [Windows 어댑터 성능 데이터](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/d3dkmthk/ns-d3dkmthk-_d3dkmt_adapter_perfdata)
+- **개발자 컨트롤 → AI 계정**에서 이 PC의 공식 Codex·Claude Code CLI 로그인 상태를 확인하고 계정을 연결합니다. 로그인은 공급자의 공식 창에서 진행합니다. 허브 연동 해제는 이 PC의 표시 설정만 제거하며 공식 세션은 유지됩니다. [Codex 인증](https://learn.chatgpt.com/docs/auth) · [Claude Code 인증](https://code.claude.com/docs/en/authentication)
+- **Codex → 모델 비교**에서 비교할 두 모델을 바꾸면서 권장 작업과 기본 콘텍스트를 확인할 수 있습니다. 공식 문서에서 최신 목록을 확인하고, 오프라인에서는 앱의 비교 자료를 표시합니다. [공식 Codex 모델 안내](https://learn.chatgpt.com/docs/models)
+
 ## 0.8.0.0 · 개발자 컨트롤과 보조 위젯
 
 매크로 패드의 **개발자 컨트롤** 또는 트레이 메뉴에서 열 수 있습니다. **창 배치**는 기존 4창, 6창 확장, 개발자 모드를 제공하며, 각 창은 독립적으로 이동하고 최소화할 수 있습니다. 창 위치와 녹색·네온 테마는 이 PC에 저장합니다.

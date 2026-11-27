@@ -8,7 +8,7 @@
   'Codex':[
    card('project','프로젝트','folder','select'),card('model','모델','settings','choice'),card('effort','추론 강도','settings','choice'),card('codex-new','새 채팅','plus','draft'),
    card('codex-compose','작성창','file','draft'),card('codex-approval','확인 요청','shield','draft'),card('codex-palette','명령 메뉴','terminal','help'),card('open-projects','프로젝트 목록','list'),
-   card('codex-previous','이전 채팅','back','help'),card('codex-next','다음 채팅','arrow','help'),card('codex-find-chat','채팅 찾기','search','help'),card('codex-sidebar','사이드바','grid','help'),
+   card('codex-previous','이전 채팅','back','help'),card('codex-next','다음 채팅','arrow','help'),card('codex-find-chat','채팅 찾기','search','help'),card('codex-model-comparison','모델 비교','branch','compare-models'),
    card('codex-find-file','파일 찾기','search','help'),card('codex-file-tree','파일 트리','folder','help'),card('codex-recent-1','최근 채팅 1','clock','thread'),card('codex-recent-2','최근 채팅 2','clock','thread'),
    card('codex-bug','버그 수정','alert','draft'),card('codex-feature','기능 개발','star','draft'),card('codex-analyze','코드 분석','code','draft'),card('codex-refactor','리팩터링','refresh','draft'),
    card('validate-types','타입 검사','check','confirm'),card('validate-test','테스트','play','confirm'),card('validate-build','빌드','box','confirm'),card('validate-all','전체 검증','shield','confirm'),
@@ -54,7 +54,7 @@
   download:'M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4',cloud:'M5 18h14a4 4 0 0 0 0-8 7 7 0 0 0-13-2 5 5 0 0 0-1 10',
   monitor:'M3 4h18v13H3zM12 17v4m-5 0h10'
  };
- const modes={open:'열기',select:'선택',choice:'설정',read:'조회',search:'검색',pr:'PR 조회',compare:'브랜치 선택',confirm:'확인 필요',draft:'요청 준비',prompt:'요청 저장',thread:'채팅 링크',help:'앱에서 실행'};
+ const modes={open:'열기',select:'선택',choice:'설정',read:'조회',search:'검색',pr:'PR 조회',compare:'브랜치 선택','compare-models':'최신 · 기존 모델',confirm:'확인 필요',draft:'요청 준비',prompt:'요청 저장',thread:'채팅 링크',help:'앱에서 실행'};
  const titles={'Codex':'AI 작업 제어','GitHub':'저장소 및 개발 흐름','도구':'Windows 도구','웹앱':'웹 바로가기','폴더':'이 PC의 폴더'};
  const hints={'Codex':'모델과 추론 강도는 요청문에 담을 선호값입니다. 적용 여부는 Codex에서 확인하세요.',
    'GitHub':'선택한 저장소의 실제 데이터를 조회합니다. PR·이슈는 GitHub에서 작성합니다.',
@@ -64,6 +64,7 @@
  const names={macro:'매크로 패드',pc:'PC 성능',home:'스마트홈',log:'작업 기록',dev:'개발자 컨트롤',widgets:'보조 위젯'};
  let publish,state,active='Codex',pendingAction=null,dialogScope=null,dialogBack=null,lastTabButton=null;
  let monthCursor,todayKey,clockInterval;
+ let modelIds=[];
 
  function glyph(name){
   const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),path=document.createElementNS(ns,'path');
@@ -197,6 +198,10 @@
  }
  function activate(item){
   if(!state||state.running)return;
+  if(item.id==='codex-model-comparison'){
+   modelIds=[];
+   $('model-dialog').showModal();utility('developer-models','show');return;
+  }
   if(item.id==='project'){$('dev-project').focus();return;}
   if(item.id==='folder-settings'){dialogSettings('folders');return;}
   if(item.mode==='choice'){dialogChoice(item);return;}
@@ -303,6 +308,71 @@
   $('dev-dialog').addEventListener('close',()=>{if(!$('dev-dialog').open){dialogBack?.focus();dialogScope=null;}});
   $('dev-result-close').onclick=()=>{$('dev-result').hidden=true;(pendingAction?.isConnected?pendingAction:lastTabButton)?.focus();};
   $('dev-cancel-run').onclick=()=>send('developer-cancel');
+  $('dev-ai').onclick=()=>{$('ai-dialog').showModal();utility('developer-ai','refresh');};
+  $('ai-close').onclick=()=>$('ai-dialog').close();
+  $('ai-refresh').onclick=()=>utility('developer-ai','refresh');
+  $('model-close').onclick=()=>$('model-dialog').close();
+  for(const id of ['guide','release','refresh'])$('model-'+id).onclick=()=>utility('developer-models',id);
+ }
+ function utility(type,id,provider){publish(type,{id,provider});}
+ function renderAccounts(data){
+  const root=$('ai-providers');root.replaceChildren();
+  for(const provider of data.providers){
+   const section=node('section','','ai-provider');
+   const head=node('div','','row');
+   const status=provider.connected?'연결됨':provider.login?'로그인 진행 중':provider.busy?'확인 중':provider.statusText;
+   head.append(node('h3',provider.title),node('span',status,'ai-status'));
+   section.append(head);
+   if(provider.message)section.append(node('p',provider.message,'dev-muted'));
+   const buttons=node('div','','widget-buttons');
+   if(!provider.connected){
+    const label=provider.status==='Account'?'기존 계정 연결':provider.status==='MissingCli'?'데스크톱에서 로그인':'공식 계정 로그인';
+    const link=button(label,()=>utility('developer-ai','link',provider.id),'dev-primary');
+    link.disabled=provider.busy||provider.login||data.readOnly;buttons.append(link);
+   }
+   if(provider.status==='MissingCli')buttons.append(button('공식 CLI 설치 안내',()=>utility('developer-ai','setup',provider.id)));
+   else buttons.append(button('데스크톱 열기',()=>utility('developer-ai','desktop',provider.id)));
+   if(provider.linked){
+    const unlink=button('허브 연동 해제',()=>utility('developer-ai','unlink',provider.id));
+    unlink.disabled=provider.busy||provider.login||data.readOnly;buttons.append(unlink);
+   }
+   buttons.append(button('공식 로그인 안내',()=>utility('developer-ai','guide',provider.id)));
+   section.append(buttons);root.append(section);
+  }
+  $('ai-refresh').disabled=data.providers.some(provider=>provider.busy);
+ }
+ function modelCard(model,available,index,change){
+  const section=node('section','','model-option');
+  const select=node('select');
+  field(section,index===0?'첫 번째 모델':'두 번째 모델',select);
+  options(select,available.map(item=>[item.id,item.title]),model.id);
+  select.onchange=()=>change(select.value);
+  const generation=model.latest?'최신 세대':model.listed?'기존 세대':'이전 자료';
+  section.append(node('span',generation,'model-generation'));
+  const list=node('dl');
+  for(const [label,value] of [
+   ['주로 맞는 작업',model.work],['속도·비용과 용도',model.tradeoff],
+   ['기본 콘텍스트',model.context?Number(model.context).toLocaleString('ko-KR')+' 토큰':'공식 비교 자료에 수치 없음']
+  ]){
+   const row=node('div');row.append(node('dt',label),node('dd',value));list.append(row);
+  }
+  section.append(list);return section;
+ }
+ function renderModels(data){
+  if(!$('model-dialog').open||!data.models.length)return;
+  const status=data.busy?'공식 모델 자료 확인 중':data.error??(data.checkedAt?'공식 문서 확인 '+data.checkedAt:'기본 비교 자료 '+data.builtInDate);
+  $('model-updated').textContent=status;
+  $('model-refresh').disabled=data.busy;
+  const latest=data.models.find(item=>item.latest)??data.models[0];
+  const preferred=data.models.find(item=>item.title===data.preferred&&item.id!==latest.id);
+  const previous=preferred??data.models.find(item=>!item.latest)??data.models[1]??latest;
+  const byId=id=>data.models.find(item=>item.id===id);
+  const compared=[byId(modelIds[0])??latest,byId(modelIds[1])??previous];
+  const layout=$('model-comparison');
+  layout.replaceChildren(...compared.map((model,index)=>modelCard(model,data.models,index,value=>{
+   modelIds[index]=value;renderModels(data);
+   layout.querySelectorAll('select')[index].focus();
+  })));
  }
  function widget(id,value){publish('developer-widget',{id,value});}
  function calendar(){
@@ -354,6 +424,8 @@
    if(data.kind==='developer-state')renderState(data);
    if(data.kind==='developer-result')renderResult(data);
    if(data.kind==='widget-state')renderWidgets(data);
+   if(data.kind==='ai-account-state')renderAccounts(data);
+   if(data.kind==='model-comparison')renderModels(data);
   }
  };
 })();

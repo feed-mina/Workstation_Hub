@@ -15,6 +15,7 @@ namespace MinaDesk {
         public Dictionary<string,string> Threads { get; set; }
         public Dictionary<string,string> Links { get; set; }
         public Dictionary<string,string> Folders { get; set; }
+        public Dictionary<string,bool> AiLinks { get; set; }
 
         public DeveloperPreferences() {
             Version=1;
@@ -25,6 +26,7 @@ namespace MinaDesk {
             Threads=new Dictionary<string,string>();
             Links=new Dictionary<string,string>();
             Folders=new Dictionary<string,string>();
+            AiLinks=new Dictionary<string,bool>();
         }
     }
 
@@ -78,6 +80,7 @@ namespace MinaDesk {
             var value=LocalData.Read<DeveloperPreferences>(file,()=>null);
             if(value==null || value.Version!=1 || value.Branches==null || value.Prompts==null || value.Threads==null || value.Links==null || value.Folders==null)
                 throw new InvalidDataException("개발자 설정 형식을 확인하세요.");
+            if(value.AiLinks==null)value.AiLinks=new Dictionary<string,bool>();
             return value;
         }
         internal void Change(Action<DeveloperPreferences> update) {

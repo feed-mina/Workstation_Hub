@@ -30,12 +30,14 @@ namespace MinaDesk {
                     if(row["SharedUsage"]!=null)shared=(shared??0)+Convert.ToDouble(row["SharedUsage"],CultureInfo.InvariantCulture)/bytesPerGiB;
                 });
             }catch(ManagementException){}catch(System.Runtime.InteropServices.COMException){}catch(UnauthorizedAccessException){}
-            return new {kind="gpu-sample",load,dedicated,shared,
+            TemperatureReading cpuTemperature,gpuTemperature;
+            TemperatureSensors.Read(out cpuTemperature,out gpuTemperature);
+            return new {kind="gpu-sample",load,dedicated,shared,cpuTemperature,gpuTemperature,
                 status=load.HasValue || dedicated.HasValue || shared.HasValue?
                     "Windows 성능 카운터 · 가장 바쁜 엔진과 어댑터 메모리 합계":"이 PC에서 사용할 수 있는 GPU 성능 카운터를 찾지 못했습니다."};
         }
-        static void Read(string query,Action<ManagementBaseObject> row) {
-            using(var search=new ManagementObjectSearcher(@"root\CIMV2",query,
+        internal static void Read(string query,Action<ManagementBaseObject> row,string scope=@"root\CIMV2") {
+            using(var search=new ManagementObjectSearcher(scope,query,
                 new EnumerationOptions{ReturnImmediately=true,Timeout=TimeSpan.FromSeconds(3)}))
             using(var values=search.Get())
             foreach(ManagementBaseObject value in values)using(value)row(value);

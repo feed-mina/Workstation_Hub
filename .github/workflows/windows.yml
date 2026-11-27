@@ -16,6 +16,7 @@ jobs:
         run: |
           node tests/macro-ui.cjs
           node tests/smart-ui.cjs
+          node tests/hardware-ai-ui.cjs
       - name: Install external media tool for fixtures
         run: choco install ffmpeg --yes --no-progress
       - name: Project skill persistence, recovery and desktop handoff guards

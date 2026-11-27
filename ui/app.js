@@ -105,14 +105,22 @@ function sample(data){
  for(const [k,col] of [['cpu','#ffd46b'],['ram','#b8f392']]){const line=d3.line().defined(d=>d[k]!=null).x(d=>x(d.time)).y(d=>y(d[k])).curve(d3.curveMonotoneX);svg.selectAll('.'+k).data([chartHistory]).join('path').attr('class',k).attr('d',line).attr('stroke',col).attr('stroke-width',2.4).attr('fill','none');}
  $('interval').textContent='최근 60초 · 1.5초 간격 · '+new Date(data.time).toLocaleTimeString('ko-KR');
 }
+function paintGpu(data){
+ $('gpu-load').textContent=data.load==null?'—':Math.round(data.load)+'%';
+ const gb=value=>value==null?'—':value<.01&&value>0?Math.round(value*1024)+' MiB':value.toFixed(2)+' GiB';
+ $('gpu-memory').textContent=data.dedicated==null&&data.shared==null?'—':'전용 '+gb(data.dedicated)+' · 공유 '+gb(data.shared);
+ for(const [id,value] of [['cpu-temperature',data.cpuTemperature],['gpu-temperature',data.gpuTemperature]]){
+   const cell=$(id);
+   cell.textContent=value?Number(value.celsius).toFixed(1)+' °C':'센서 미제공';
+   cell.title=value?value.sensor+' · '+value.source:'Windows 드라이버 또는 LibreHardwareMonitor의 WMI 센서에서 온도를 받을 수 없습니다.';
+ }
+ $('gpu-status').textContent=data.status;
+}
 async function boot(){
  if(!Object.hasOwn(panels,key))return;
  $('title').textContent=panels[key];$('badge').textContent={pc:'실제 측정',home:'기기 시연',macro:'PC 명령',log:'이 PC',dev:'개발 도구',widgets:'이 PC'}[key];$(key).hidden=false;
  if(key==='macro'){await loadScript('icons.js');await loadScript('skill-descriptions.ko.js');await loadScript('skills.js');await loadScript('projects.js');setupKeys();window.projectSkills.setup();window.projectConnections.setup();$('developer-show').onclick=()=>send('developer-show');}
- if(key==='pc'){
-   await loadScript('vendor/d3.min.js');
-   $('gpu-details').addEventListener('toggle',()=>send('gpu-watch',{id:$('gpu-details').open?'on':'off'}));
- }
+ if(key==='pc')await loadScript('vendor/d3.min.js');
  if(key==='dev'||key==='widgets'){await loadScript('developer.js');window.developerView.setup(key,send);}
  if(key==='home'){setupHome();await loadScript('room.js');await loadScript('smart-home.js');$('badge').textContent='방별 연결';}
  if(key==='log')$('history-settings').onclick=()=>send('history-settings');
@@ -126,12 +134,7 @@ async function boot(){
      if(signature!==lastLogId){lastLogId=signature;$('history').replaceChildren();$('count').textContent='기록 없음';data.items.forEach(addLog);}
    }
    if(data.kind==='notice')announce(data.text);
-   if(data.kind==='gpu-sample'&&key==='pc'){
-     $('gpu-load').textContent=data.load==null?'—':Math.round(data.load)+'%';
-     const gb=value=>value==null?'—':value.toFixed(2)+' GiB';
-     $('gpu-memory').textContent=gb(data.dedicated)+' / '+gb(data.shared);
-     $('gpu-status').textContent=data.status;
-   }
+   if(data.kind==='gpu-sample'&&key==='pc')paintGpu(data);
    if(data.kind==='macro-handoff'&&key==='macro'){
      if(data.view==='projects'&&!$('projects-dialog').open)window.projectConnections.open();
      if(data.view==='skills'&&!$('skills-dialog').open)window.projectSkills.open();

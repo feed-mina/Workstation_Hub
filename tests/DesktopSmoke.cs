@@ -52,7 +52,11 @@ class DesktopSmoke {
         Check(hub.Tray.Visible&&hub.Tray.Icon!=null&&hub.Toggles.Count==6,"tray exposes all six windows");
         await Dom("macro","document.querySelectorAll('#keys .key').length===13&&!!document.querySelector('[data-key=skills]')","existing macro keys and skill entry");
         await Dom("pc","/^\\d+%$/.test(document.getElementById('cpu').innerText)&&document.querySelectorAll('#plot path').length===2","real CPU/RAM chart");
+        await Dom("pc","document.querySelectorAll('.pc-sensors dd').length===4&&document.getElementById('cpu-temperature').textContent!=='—'","hardware panel shows driver or sensor availability",15);
         await Dom("dev","document.querySelectorAll('#dev-tabs button').length===5&&document.querySelectorAll('.dev-card').length===32&&!document.querySelector('.dev-card').disabled","five developer tabs and 32 initial Codex cards");
+        await Js("dev","document.querySelector('[data-card=codex-model-comparison]').click()");
+        await Dom("dev","document.querySelector('#model-dialog').open&&document.querySelectorAll('#model-comparison select').length===2&&document.querySelector('#model-comparison').innerText.includes('기본 콘텍스트')","model comparison shows two selectable models");
+        await Js("dev","document.getElementById('model-close').click()");
         await Dom("widgets","document.querySelectorAll('#widget-dock button').length===9&&!!document.querySelector('#calendar-days [aria-current=date]')","clock, calendar and nine shortcuts");
         await Js("widgets","document.getElementById('calendar-next').click()");
         await Dom("widgets","!document.querySelector('#calendar-days [aria-current=date]')","calendar can navigate to next month");
