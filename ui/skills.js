@@ -21,7 +21,7 @@
   el('skill-reference').disabled=blocked||el('skill-scope').value==='location';
   el('skill-save').textContent=pending==='skill-save'?'저장 중…':editId?'이 버튼 수정 저장':'이 프로젝트에 버튼 추가';
   el('skill-new').hidden=!editId;
-  const choice=el('start-apps');if(choice)choice.disabled=blocked;
+   const choice=el('start-apps');if(choice)choice.disabled=!state||!(state.startAppsEditable??!state.readOnly)||!!pending||!!state.busy;
   for(const button of document.querySelectorAll('[data-skill-run]'))button.disabled=blocked||!!state?.runningId||!current();
   for(const button of document.querySelectorAll('[data-skill-remove],[data-skill-edit]'))button.disabled=blocked;
  }

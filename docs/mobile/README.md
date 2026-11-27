@@ -8,7 +8,7 @@ Windows 허브의 여섯 창을 휴대폰의 **하단 탭 여섯 개**로 옮긴
 | 지원 | Android 8.0 (API 26) 이상 · targetSdk 35 |
 | 패키지 | `com.minadesk.workstationhub` · 버전 0.9.0.0 (Windows 0.9.0.0 과 같은 기능 세대) |
 | 빌드 | GitHub Actions **Android build** 워크플로가 `mobile` 브랜치 푸시마다 디버그 APK 를 산출물(`WorkstationHub-debug-apk`)로 올립니다. 로컬은 Android Studio 또는 `cd android && ./gradlew assembleDebug` |
-| 검사 | `node tests/mobile-bridge.cjs` (브리지 셰임 회귀) · 워크플로의 `lintDebug` |
+| 검사 | `node tests/mobile-bridge.cjs`, `node tests/mobile-behavior.cjs` · `./gradlew testDebugUnitTest assembleDebug lintDebug` |
 
 ## 1. 구조
 
@@ -40,7 +40,22 @@ flowchart LR
 
 * **브리지** · `PanelView` 가 `https://workstation-hub.invalid/desk.html` 요청을 가로채 `hub-bridge.js` 와 `mobile.css` 를 끼워 넣습니다. 브리지는 WebView2 의 `window.chrome.webview.postMessage / addEventListener('message')` 와 같은 모양을 만들어 `ui/*.js` 를 수정하지 않습니다. CSP(`script-src 'self'`)를 그대로 지키며, 다른 호스트 요청·새 창·다운로드·권한 요청은 데스크톱과 같이 막습니다.
 * **메시지 계약** · `state / theme / sample / gpu-sample / history / notice / developer-state / developer-result / widget-state / ai-account-state / model-comparison / skills-result` 의 필드 이름은 `Hub.cs` 와 동일합니다. 새 필드를 화면에 추가할 때는 `Hub.kt` 의 해당 snapshot 도 함께 바꿔야 합니다.
-* **저장 위치** · 앱 내부 저장소 `files/WorkstationHub/` 에 `work-history.json`, `smart-home.json`(토큰은 Android Keystore AES-GCM 으로 보호). 테마·업무 시작 앱·재생 서비스·모델/추론 강도·웹 바로가기는 SharedPreferences. 모두 이 기기 전용이며 PC 와 자동 동기화하지 않습니다.
+* **저장 위치** · 앱 내부 저장소 `files/WorkstationHub/` 에 `work-history.json`, `smart-home.json`(토큰은 Android Keystore AES-GCM 으로 보호). 기록 읽기·쓰기·최근 목록 계산은 단일 작업 스레드에서 순서대로 진행하고 결과만 화면으로 전달합니다. 테마·업무 시작 앱·재생 서비스·모델/추론 강도·웹 바로가기는 SharedPreferences. 모두 이 기기 전용이며 PC 와 자동 동기화하지 않습니다.
+
+## 코드 리뷰 수정 (2026-11-27)
+
+| 항목 | 반영 동작 | 검증 |
+|---|---|---|
+| R1 · P1 연결 상태 혼용 | 저장된 설정마다 별도 HA 클라이언트 사용. 저장 즉시 상태 무효화, 이전 응답 배제, 새 상태 확인 전 지원 기능 차단 | JVM: 조회 중 설정 변경·대기 중 변경·오프라인·오래된 상태·실행 중 저장 |
+| R7 · 연결 확인 대기열 | 설정 화면 소유의 `ConnectionProbe` 사용. 중복 클릭 합치기, 종료 시 작업 취소·늦은 콜백 배제. 시험 기기는 설정 화면에만 보관 | JVM: 연속 클릭·반복 시험·종료 전후 콜백, 운영 상태 보존 |
+| R2 · 업무 시작 앱 선택 | 프로젝트 읽기 전용 상태와 앱 선택 가능 여부 분리 | Node: 모바일 활성·작업 중 차단·Windows 읽기 전용 보존 |
+| R3 · 요청문 선호값 | 모델·추론 강도와 입력을 합쳐 같은 최종 내용을 클립보드와 결과에 표시 | JVM: 기본값·선호값·4,000자 한글 입력 |
+| R4 · PC 전용 카드 | 호스트의 `supportedCards`를 보고 PC 전용 대화상자 전에 안내 경로로 전달 | Node: 모든 미지원 카드 순회, 지원 모델 선택·Windows 선택 유지 |
+| R5 · 기록 저장 | 초기 읽기·저장·정렬을 화면 처리 스레드에서 분리 | JVM: 지연 실행·순서·재시작·실패 복구·5,000개 보관·60개 표시 |
+| R6 · 설정 화면 여백 | 두 Activity가 시스템 표시줄·화면 잘림·키보드 여백 처리 공유 | 빌드·lint. Android 15/16의 실제 화면 겹침은 기기 확인 필요 |
+| R8 · 위젯 타이머 | 네이티브 탭/앱 가시성과 문서 가시성에 따라 시계 중지·재개. 앱 비활성 시 WebView 전체 타이머도 중지 | Node: 숨김·복귀·중복 타이머·pagehide/pageshow·Windows 동작 |
+
+JVM 검사만을 위한 JUnit 및 JSON 라이브러리를 추가했습니다. APK의 실행 시 외부 라이브러리 의존성은 추가하지 않았습니다. 실제 HA 제어, 미디어 키, Android 15/16 화면 여백과 배터리 사용량은 실기기 검증 범위입니다. 자동 검사는 Actions의 `android-unit-tests` 및 `android-lint` 산출물에서 확인합니다.
 
 ## 2. 탭별 동작과 Windows 대비 차이
 

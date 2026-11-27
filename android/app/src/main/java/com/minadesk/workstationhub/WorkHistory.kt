@@ -1,6 +1,5 @@
 package com.minadesk.workstationhub
 
-import android.os.Build
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -9,6 +8,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 
 internal class WorkEntry(val id: String, val at: Long, val device: String, val source: String, val detail: String) {
     fun toJson(): JSONObject = obj("Id" to id, "AtMillis" to at, "Pc" to device, "Source" to source, "Detail" to detail)
@@ -22,10 +23,9 @@ internal class WorkEntry(val id: String, val at: Long, val device: String, val s
 }
 
 /** 데스크톱 WorkHistory 와 같은 보존 규칙(5000개)으로 이 기기의 기록을 `work-history.json` 에 저장합니다. 공유 폴더 동기화는 Windows 전용입니다. */
-internal class WorkHistory(directory: File) {
+internal class WorkHistory(directory: File, private val write: (File, Any) -> Unit = LocalData::write) {
     private val file = File(directory, "work-history.json")
     private val entries = ArrayList<WorkEntry>()
-    val deviceName: String = (Build.MODEL ?: "휴대폰").trim().ifEmpty { "휴대폰" }.take(24)
 
     init {
         val stored = LocalData.readArray(file)
@@ -35,12 +35,12 @@ internal class WorkHistory(directory: File) {
     fun snapshot(): List<WorkEntry> = entries.toList()
 
     @Throws(IOException::class)
-    fun add(source: String, detail: String) {
-        entries.add(WorkEntry(UUID.randomUUID().toString().replace("-", ""), System.currentTimeMillis(), deviceName, source, detail))
+    fun add(entry: WorkEntry) {
+        entries.add(entry)
         while (entries.size > RETENTION) entries.removeAt(0)
         val json = JSONArray()
         for (entry in entries) json.put(entry.toJson())
-        LocalData.write(file, json)
+        write(file, json)
     }
 
     companion object {
@@ -52,5 +52,45 @@ internal class WorkHistory(directory: File) {
             rows.distinctBy { it.id }.sortedWith(compareByDescending<WorkEntry> { it.at }.thenByDescending { it.id }).take(60).reversed()
 
         fun time(entry: WorkEntry): String = stamp.format(Date(entry.at))
+    }
+}
+
+internal data class HistorySnapshot(val rows: List<WorkEntry> = emptyList(), val status: String = "기록을 읽고 있습니다.")
+
+/** File reads, full-file writes and recent-row sorting all stay on one ordered worker. */
+internal class WorkHistoryStore(
+    directory: File,
+    device: String,
+    private val ui: UiScheduler = AndroidUiScheduler(),
+    private val worker: Executor = Executors.newSingleThreadExecutor(),
+    private val open: (File) -> WorkHistory = { WorkHistory(it) },
+    private val changed: () -> Unit
+) {
+    private val deviceName = device.trim().ifEmpty { "휴대폰" }.take(24)
+    private var store: WorkHistory? = null // Owned only by worker.
+    @Volatile var snapshot = HistorySnapshot()
+        private set
+
+    init {
+        worker.execute {
+            try {
+                store = open(directory)
+                publish("이 휴대폰")
+            } catch (_: Exception) { publish("작업 기록 파일을 열 수 없습니다.") }
+        }
+    }
+
+    fun add(source: String, detail: String) {
+        val entry = WorkEntry(UUID.randomUUID().toString().replace("-", ""), System.currentTimeMillis(), deviceName, source, detail)
+        worker.execute {
+            val history = store ?: return@execute
+            try { history.add(entry); publish("이 휴대폰") }
+            catch (_: Exception) { publish("이 휴대폰에 기록을 저장하지 못했습니다.") }
+        }
+    }
+
+    private fun publish(status: String) {
+        val next = HistorySnapshot(WorkHistory.recent(store?.snapshot() ?: emptyList()), status)
+        ui.post { snapshot = next; changed() }
     }
 }

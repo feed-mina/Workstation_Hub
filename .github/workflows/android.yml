@@ -2,9 +2,9 @@ name: Android build
 on:
   push:
     branches: [mobile]
-    paths: ['android/**', 'ui/**', 'tests/mobile-bridge.cjs', '.github/workflows/android.yml']
+    paths: ['android/**', 'ui/**', 'tests/mobile-*.cjs', '.github/workflows/android.yml']
   pull_request:
-    paths: ['android/**', 'ui/**', 'tests/mobile-bridge.cjs', '.github/workflows/android.yml']
+    paths: ['android/**', 'ui/**', 'tests/mobile-*.cjs', '.github/workflows/android.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,7 +15,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Bridge shim regression
-        run: node tests/mobile-bridge.cjs
+        run: |
+          node tests/mobile-bridge.cjs
+          node tests/mobile-behavior.cjs
+          node tests/macro-ui.cjs
+          node tests/hardware-ai-ui.cjs
+          node tests/smart-ui.cjs
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -25,8 +30,11 @@ jobs:
         working-directory: android
         # Maven Central 이 일시적으로 429 를 돌려주는 날이 있어 의존성 해결을 최대 4번 재시도합니다.
         run: |
+          log="$RUNNER_TEMP/android-gradle.log"
           for attempt in 1 2 3 4; do
-            if ./gradlew --no-daemon assembleDebug lintDebug; then exit 0; fi
+            if ./gradlew --no-daemon testDebugUnitTest assembleDebug lintDebug 2>&1 | tee "$log"; then exit 0; fi
+            # Compile/test failures need a fix; retry only transient dependency/network failures.
+            if ! grep -Eq '429|Could not (GET|HEAD)|Could not resolve|Read timed out' "$log"; then exit 1; fi
             echo "::warning::Gradle attempt $attempt failed; retrying after backoff"
             sleep $((attempt * 60))
           done
@@ -43,4 +51,13 @@ jobs:
         with:
           name: android-lint
           path: android/app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
+      - name: Upload unit test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-unit-tests
+          path: |
+            android/app/build/reports/tests/testDebugUnitTest
+            android/app/build/test-results/testDebugUnitTest
           if-no-files-found: ignore

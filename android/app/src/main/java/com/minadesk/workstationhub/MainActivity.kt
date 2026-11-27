@@ -4,13 +4,11 @@ import android.app.Activity
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
-import android.os.Build
 import android.os.Bundle
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowInsets
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -51,25 +49,16 @@ class MainActivity : Activity(), HubHost {
             tabs.addView(tab, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }
         setContentView(root)
-        applyInsets()
+        root.applyHubInsets()
         applyTheme(hub.theme)
         showPanel(savedInstanceState?.getString("tab") ?: getPreferences(MODE_PRIVATE).getString("tab", "macro") ?: "macro")
-    }
-
-    private fun applyInsets() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            root.setOnApplyWindowInsetsListener { view, insets ->
-                val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout() or WindowInsets.Type.ime())
-                view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
-                WindowInsets.CONSUMED
-            }
-        } else root.fitsSystemWindows = true
     }
 
     override fun onSaveInstanceState(outState: Bundle) { super.onSaveInstanceState(outState); current?.let { outState.putString("tab", it) } }
 
     override fun onResume() {
         super.onResume()
+        panels.values.firstOrNull()?.resumeTimers()
         hub.host = this
         hub.visible = current
         for (panel in panels.values) panel.onResume()
@@ -78,6 +67,7 @@ class MainActivity : Activity(), HubHost {
     override fun onPause() {
         hub.visible = null
         hub.host = null
+        panels.values.firstOrNull()?.pauseTimers()
         for (panel in panels.values) panel.onPause()
         super.onPause()
     }

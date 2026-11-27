@@ -12,7 +12,6 @@ import android.os.Looper
 import android.provider.Settings
 import org.json.JSONObject
 import java.io.File
-import java.io.IOException
 import java.util.UUID
 
 /** MainActivity 가 구현. 탭 전환과 네이티브 설정 화면 열기를 허브가 요청할 때 사용합니다. */
@@ -37,6 +36,9 @@ internal class Hub(private val app: Application) {
         private val SKILL_MESSAGES = setOf("skills-open", "skills-refresh", "skill-project-add", "skill-project-select", "skill-start-apps", "skill-save", "skill-remove", "skill-run", "skill-button-options", "github-login", "github-cancel", "github-refresh", "github-logout", "github-share-connect", "github-sync", "github-register", "project-config", "project-bind", "project-conflict", "project-open-app")
         private val DRAFT_CARDS = setOf("codex-new", "codex-compose", "codex-approval", "codex-bug", "codex-feature", "codex-analyze", "codex-refactor", "codex-git", "codex-skill-use", "codex-skill-create", "prompt-1", "prompt-2", "prompt-3")
         private val HELP_CARDS = setOf("codex-palette", "codex-previous", "codex-next", "codex-find-chat", "codex-find-file", "codex-file-tree")
+        private val PHONE_CARDS = (DRAFT_CARDS - "codex-skill-use") + HELP_CARDS +
+            DeveloperPreferences.BUILT_IN_LINKS.keys.filter { it.startsWith("web-") } + DeveloperPreferences.LINK_NAMES.keys +
+            setOf("model", "effort", "codex-model-comparison", "codex-recent-1", "codex-recent-2", "codex-settings", "tool-focus", "tool-accounts")
         private val CARD_LABELS = mapOf(
             "project" to "프로젝트", "open-projects" to "프로젝트 목록", "open-project-settings" to "프로젝트 설정", "codex-skills" to "스킬 목록",
             "validate-types" to "타입 검사", "validate-test" to "테스트", "validate-build" to "빌드", "validate-all" to "전체 검증",
@@ -49,8 +51,7 @@ internal class Hub(private val app: Application) {
     private val main = Handler(Looper.getMainLooper())
     private val prefs = app.getSharedPreferences("hub", Context.MODE_PRIVATE)
     private val dataDir = File(app.filesDir, "WorkstationHub").also { it.mkdirs() }
-    private val history: WorkHistory? = try { WorkHistory(dataDir) } catch (_: Exception) { null }
-    private var historyError: String? = if (history == null) "작업 기록 파일을 열 수 없습니다." else null
+    private val history = WorkHistoryStore(dataDir, android.os.Build.MODEL ?: "휴대폰") { sendHistory() }
     val commands = MacroCommands(app)
     private val telemetry = DeviceTelemetry(app)
     val smart = SmartHome(dataDir) { broadcast() }
@@ -74,7 +75,11 @@ internal class Hub(private val app: Application) {
 
     var host: HubHost? = null
     var visible: String? = null
-        set(value) { field = value; refreshSampling() }
+        set(value) {
+            field = value
+            for (panel in panels.values) panel.send(obj("kind" to "visibility", "visible" to (panel.key == value)))
+            refreshSampling()
+        }
     var theme: String
         get() = prefs.getString("theme", "green")?.takeIf { it == "neon" } ?: "green"
         private set(value) { prefs.edit().putString("theme", value).apply() }
@@ -116,7 +121,7 @@ internal class Hub(private val app: Application) {
     )
 
     private fun skillsSnapshot(): JSONObject = obj(
-        "readOnly" to true, "loading" to false, "busy" to false, "status" to skillsStatus, "runningId" to null, "selectedProjectId" to null,
+        "readOnly" to true, "startAppsEditable" to true, "loading" to false, "busy" to false, "status" to skillsStatus, "runningId" to null, "selectedProjectId" to null,
         "startApps" to startApps, "syncStatus" to "", "projects" to emptyList<Any>(), "buttons" to emptyList<Any>(), "catalog" to emptyList<Any>(),
         "warnings" to listOf("휴대폰에는 설치된 스킬 폴더가 없습니다."),
         "github" to obj("available" to false, "connected" to false, "accountId" to 0, "login" to null, "authCode" to null, "authenticating" to false, "shareReady" to false, "shareRepository" to null, "repositories" to emptyList<Any>())
@@ -136,16 +141,14 @@ internal class Hub(private val app: Application) {
     private fun notice(panel: PanelView, text: String) = panel.send(obj("kind" to "notice", "text" to text))
 
     private fun addLog(source: String, detail: String) {
-        val store = history ?: return
-        try { store.add(source, detail); historyError = null } catch (_: IOException) { historyError = "이 휴대폰에 기록을 저장하지 못했습니다." }
-        sendHistory()
+        history.add(source, detail)
     }
 
     private fun sendHistory() {
         val panel = panels["log"]?.takeIf { it.ready } ?: return
-        val rows = WorkHistory.recent(history?.snapshot() ?: emptyList())
-        panel.send(obj("kind" to "history", "status" to (historyError ?: "이 휴대폰"),
-            "items" to rows.map { obj("id" to it.id, "time" to WorkHistory.time(it), "pc" to it.device, "source" to it.source, "detail" to it.detail) }))
+        val state = history.snapshot
+        panel.send(obj("kind" to "history", "status" to state.status,
+            "items" to state.rows.map { obj("id" to it.id, "time" to WorkHistory.time(it), "pc" to it.device, "source" to it.source, "detail" to it.detail) }))
     }
 
     private fun ready(panel: PanelView) {
@@ -155,6 +158,7 @@ internal class Hub(private val app: Application) {
             "dev" -> panel.send(developerSnapshot())
             "widgets" -> panel.send(weather.snapshot())
         }
+        panel.send(obj("kind" to "visibility", "visible" to (panel.key == visible)))
         refreshSampling()
     }
 
@@ -255,7 +259,7 @@ internal class Hub(private val app: Application) {
 
     // ── 개발자 컨트롤 ──────────────────────────────────────────────────────
     private fun developerSnapshot(): JSONObject = obj(
-        "kind" to "developer-state", "scope" to developerScope, "project" to null, "projects" to emptyList<Any>(), "account" to null,
+        "kind" to "developer-state", "scope" to developerScope, "supportedCards" to PHONE_CARDS.toList(), "project" to null, "projects" to emptyList<Any>(), "account" to null,
         "projectBusy" to false, "projectStatus" to "휴대폰은 PC 의 프로젝트와 GitHub 조회를 대신하지 않습니다. 웹앱·Codex 요청 복사·테마는 사용할 수 있습니다.",
         "readOnly" to false, "shareReady" to false, "branch" to null, "defaultBranch" to null, "branches" to emptyList<Any>(), "branchBusy" to false,
         "needBranches" to false, "branchError" to null, "activePr" to null, "model" to developer.model, "effort" to developer.effort,
@@ -273,9 +277,10 @@ internal class Hub(private val app: Application) {
     }
 
     private fun pcOnly(sender: PanelView, id: String?) =
-        result(sender, CARD_LABELS[id] ?: (id ?: "카드"), "Windows 허브에서 실행하는 카드입니다. 휴대폰에서는 웹앱 바로가기·Codex 요청 복사·AI 앱 열기·테마 변경을 사용할 수 있습니다.")
+        result(sender, CARD_LABELS[id] ?: "PC 전용 기능", "Windows 허브에서 실행하는 카드입니다. 휴대폰에서는 웹앱 바로가기·Codex 요청 복사·AI 앱 열기·테마 변경을 사용할 수 있습니다.")
 
     private fun handleRun(sender: PanelView, id: String?, value: String?) {
+        if (id != null && id !in PHONE_CARDS) { pcOnly(sender, id); return }
         when {
             id == null -> return
             id == "tool-focus" -> { val text = toggleFocus(); addLog("매크로", text); broadcast(); notice(sender, text) }
@@ -287,14 +292,14 @@ internal class Hub(private val app: Application) {
                 else { val text = commands.openUrl(url, DeveloperPreferences.LINK_NAMES[id] ?: id); addLog("개발자 컨트롤", text); notice(sender, text) }
             }
             id in DRAFT_CARDS -> {
-                val text = value?.trim().orEmpty()
+                val text = MobileDraft.compose(value.orEmpty(), developer.model, developer.effort)
                 if (text.isNotEmpty()) {
-                    (app.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Codex 요청", text.take(4000)))
+                    (app.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Codex 요청", text))
                 }
                 val opened = commands.openApp(MacroCommands.CHATGPT, DeveloperPreferences.BUILT_IN_LINKS["web-chatgpt"]!!, "ChatGPT")
                 val summary = if (text.isEmpty()) opened else "요청문을 복사했습니다 · $opened · 앱에서 붙여넣어 보내세요. 모델·추론 강도는 요청문에 담는 선호값입니다."
                 addLog("개발자 컨트롤", "Codex 요청 준비 · " + (if (text.isEmpty()) "빈 요청" else text.take(40)))
-                result(sender, "Codex 요청 준비", summary)
+                result(sender, "Codex 요청 준비", summary, body = text)
             }
             id in HELP_CARDS -> notice(sender, commands.openUrl(DeveloperPreferences.BUILT_IN_LINKS["codex-help"]!!, "Codex 명령 안내"))
             id == "codex-recent-1" || id == "codex-recent-2" -> {

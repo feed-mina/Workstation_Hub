@@ -198,6 +198,8 @@
  }
  function activate(item){
   if(!state||state.running)return;
+  // The host owns platform support. Route unsupported cards before desktop-only dialogs can block them.
+  if(state.supportedCards&&!state.supportedCards.includes(item.id)){run(item.id);return;}
   if(item.id==='codex-model-comparison'){
    modelIds=[];
    $('model-dialog').showModal();utility('developer-models','show');return;
@@ -404,8 +406,17 @@
    ['web-drive','Google Drive'],['folder-work','작업 폴더'],['tool-manager','작업 관리자'],['tool-settings','Windows 설정']
   ])$('widget-dock').append(button(label,()=>widget(id)));
   for(const b of document.querySelectorAll('[data-widget]'))b.onclick=()=>widget(b.dataset.widget);
-  clock();clockInterval=setInterval(clock,1000);
-  window.addEventListener('pagehide',()=>clearInterval(clockInterval),{once:true});
+  widgetActive=!window.chrome?.webview?.__androidShim;
+  clock();updateClock();
+  document.addEventListener('visibilitychange',updateClock);
+  window.addEventListener('pagehide',stopClock);
+  window.addEventListener('pageshow',updateClock);
+ }
+ let widgetActive=false,widgetsReady=false;
+ function stopClock(){clearInterval(clockInterval);clockInterval=null;}
+ function updateClock(){
+  stopClock();
+  if(widgetsReady&&widgetActive&&!document.hidden){clock();clockInterval=setInterval(clock,1000);}
  }
  function renderWidgets(data){
   options($('weather-city'),[['','도시 선택'],...data.cities.map(name=>[name,name])],data.city);
@@ -419,8 +430,9 @@
   }
  }
  window.developerView={
-  setup(panel,send){publish=send;if(panel==='dev')setupConsole();else setupWidgets();},
+  setup(panel,send){publish=send;if(panel==='dev')setupConsole();else {widgetsReady=true;setupWidgets();}},
   receive(data){
+   if(data.kind==='visibility'&&widgetsReady){widgetActive=data.visible===true;updateClock();}
    if(data.kind==='developer-state')renderState(data);
    if(data.kind==='developer-result')renderResult(data);
    if(data.kind==='widget-state')renderWidgets(data);

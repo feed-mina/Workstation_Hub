@@ -42,5 +42,8 @@ android {
     }
 }
 
-// 외부 라이브러리 없이 Android 프레임워크 API 와 Kotlin 표준 라이브러리만 사용합니다.
-dependencies {}
+// APK runtime dependencies remain framework + Kotlin only. These libraries are used by JVM tests.
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
+}

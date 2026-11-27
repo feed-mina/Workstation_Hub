@@ -25,14 +25,17 @@ class SmartSettingsActivity : Activity() {
     private lateinit var address: EditText
     private lateinit var token: EditText
     private lateinit var status: TextView
+    private lateinit var testButton: Button
     private lateinit var roomsLayout: LinearLayout
     private val rooms = ArrayList<RoomForm>()
+    private lateinit var probe: ConnectionProbe
 
     private class RoomForm(val binding: RoomBinding, val view: LinearLayout, val name: EditText, val fields: Map<String, EditText>)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         hub = (application as HubApplication).hub
+        probe = ConnectionProbe()
         val settings = hub.smart.settings
         val scroll = ScrollView(this)
         val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(16), dp(16), dp(24)) }
@@ -45,7 +48,8 @@ class SmartSettingsActivity : Activity() {
         page.addView(label("장기 액세스 토큰")); page.addView(token)
         status = hint(hub.smart.ha.status)
         page.addView(status)
-        page.addView(Button(this).apply { text = "연결 확인 · 기기 목록 읽기"; setOnClickListener { test() } })
+        testButton = Button(this).apply { text = "연결 확인 · 기기 목록 읽기"; setOnClickListener { test() } }
+        page.addView(testButton)
 
         page.addView(heading("방과 기기"))
         page.addView(hint("각 방에 HA 의 entity_id 를 연결합니다. 연결 확인을 먼저 누르면 '목록' 버튼으로 기기를 고를 수 있습니다. '이 방 다시 청소' 는 HA 에서 검증한 스크립트를, 음악은 Music Assistant 플레이어와 재생목록 URI 를 사용합니다."))
@@ -59,6 +63,12 @@ class SmartSettingsActivity : Activity() {
         actions.addView(Button(this).apply { text = "저장"; setOnClickListener { save() } })
         page.addView(actions)
         setContentView(scroll)
+        scroll.applyHubInsets()
+    }
+
+    override fun onDestroy() {
+        probe.close()
+        super.onDestroy()
     }
 
     private fun addRoom(binding: RoomBinding) {
@@ -94,18 +104,27 @@ class SmartSettingsActivity : Activity() {
     }
 
     private fun pick(target: EditText, prefixes: List<String>) {
-        val ids = hub.smart.entityIds(prefixes)
+        if (probe.busy) { Toast.makeText(this, "연결 확인이 끝난 뒤 목록을 여세요.", Toast.LENGTH_SHORT).show(); return }
+        val state = probe.state ?: hub.smart.ha.state
+        val ids = state.entityIds(prefixes)
         if (ids.isEmpty()) { Toast.makeText(this, "먼저 '연결 확인' 으로 기기 목록을 읽으세요. 해당 종류의 기기가 없을 수도 있습니다.", Toast.LENGTH_LONG).show(); return }
-        val names = ids.map { id -> val entity = hub.smart.ha.find(id); if (entity != null && entity.name != id) "${entity.name}\n$id" else id }.toTypedArray()
+        val names = ids.map { id -> val entity = state.find(id); if (entity != null && entity.name != id) "${entity.name}\n$id" else id }.toTypedArray()
         AlertDialog.Builder(this).setTitle("기기 선택").setItems(names) { _, index -> target.setText(ids[index]) }.setNeutralButton("비우기") { _, _ -> target.setText("") }.setNegativeButton("닫기", null).show()
     }
 
     /** 입력한 주소·토큰으로 한 번 조회해 상태와 기기 수를 보여 줍니다. 저장은 하지 않습니다. */
     private fun test() {
+        if (probe.busy) return
         val draft = try { draft() } catch (e: IllegalArgumentException) { status.text = e.message; return }
         if (draft.haTokenProtected.isEmpty()) { status.text = "토큰을 입력하세요."; return }
         status.text = "Home Assistant 확인 중…"
-        hub.smart.test(draft) { result -> status.text = result }
+        testButton.isEnabled = false
+        probe.start(draft) { result ->
+            if (!isFinishing && !isDestroyed) {
+                testButton.isEnabled = true
+                status.text = if (result.fresh()) "${result.status} · 기기 ${result.entities.size}개 · 서비스 ${result.services.size}개" else result.status
+            }
+        }
     }
 
     @Throws(IllegalArgumentException::class)
@@ -129,7 +148,9 @@ class SmartSettingsActivity : Activity() {
 
     private fun save() {
         val next = try { draft() } catch (e: IllegalArgumentException) { Toast.makeText(this, e.message, Toast.LENGTH_LONG).show(); return }
-        try { hub.smart.save(next) } catch (e: IOException) { Toast.makeText(this, "설정을 저장하지 못했습니다. " + e.message, Toast.LENGTH_LONG).show(); return }
+        try { hub.smart.save(next) }
+        catch (e: IOException) { Toast.makeText(this, "설정을 저장하지 못했습니다. " + e.message, Toast.LENGTH_LONG).show(); return }
+        catch (e: IllegalStateException) { Toast.makeText(this, e.message, Toast.LENGTH_LONG).show(); return }
         Toast.makeText(this, "스마트홈 설정을 저장했습니다.", Toast.LENGTH_SHORT).show()
         finish()
     }
