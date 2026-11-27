@@ -14,6 +14,8 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Button
+import android.webkit.WebView
+import android.net.Uri
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
 
@@ -30,6 +32,7 @@ class MainActivity : Activity(), HubHost {
     private val tabViews = HashMap<String, TextView>()
     private var current: String? = null
     private var backCallback: OnBackInvokedCallback? = null
+    private var webViewUnavailable = false
 
     override val activity: Activity get() = this
 
@@ -63,7 +66,23 @@ class MainActivity : Activity(), HubHost {
         setContentView(root)
         root.applyHubInsets()
         applyTheme(hub.theme)
-        showPanel(savedInstanceState?.getString("tab") ?: getPreferences(MODE_PRIVATE).getString("tab", "macro") ?: "macro")
+        val provider = WebView.getCurrentWebViewPackage()
+        val webMajor = provider?.versionName?.substringBefore('.')?.toIntOrNull()
+        webViewUnavailable = provider == null || (webMajor != null && webMajor < 80)
+        if (webViewUnavailable) {
+            tabs.visibility = View.GONE
+            val instructions = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(20), dp(20), dp(20)) }
+            instructions.addView(TextView(this).apply { text = "화면을 표시하려면 Android System WebView 또는 Chrome을 업데이트해 주세요. 앱 정보의 개인정보 안내는 지금도 읽을 수 있습니다."; textSize = 18f; setTextColor(Color.WHITE) })
+            instructions.addView(Button(this).apply {
+                text = "WebView 업데이트 안내"
+                setOnClickListener {
+                    try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://support.google.com/googleplay/answer/113412?hl=ko"))) }
+                    catch (_: android.content.ActivityNotFoundException) { android.widget.Toast.makeText(this@MainActivity, "Google Play에서 Android System WebView 또는 Chrome을 업데이트하세요.", android.widget.Toast.LENGTH_LONG).show() }
+                }
+            })
+            instructions.addView(Button(this).apply { text = "업데이트 후 다시 확인"; setOnClickListener { recreate() } })
+            container.addView(instructions)
+        } else showPanel(savedInstanceState?.getString("tab") ?: getPreferences(MODE_PRIVATE).getString("tab", "macro") ?: "macro")
         if (Build.VERSION.SDK_INT >= 33) {
             backCallback = OnBackInvokedCallback { handleBack() }.also {
                 onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, it)
@@ -98,6 +117,7 @@ class MainActivity : Activity(), HubHost {
     }
 
     override fun showPanel(key: String) {
+        if (webViewUnavailable) return
         if (key !in Hub.KEYS) return
         var panel = panels[key]
         if (panel == null) {

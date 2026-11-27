@@ -103,4 +103,15 @@ function boot(panel, { withHost = true } = {}) {
  for (const key of ['vscode', 'terminal', 'record', 'screenshot', 'pc_lock', 'skills']) assert.ok(css.includes(`[data-key=${key}]`), key + ' 버튼은 휴대폰에서 숨깁니다');
  assert.ok(/'self'/.test(html.match(/script-src[^;]*/)[0]), 'CSP script-src self 이므로 같은 출처의 hub-bridge.js 가 실행됩니다');
 }
-console.log('PASS · Android bridge shim: WebView2-compatible shape, JSON hand-off, listener isolation, no-host fallback, phone titles, inject markers');
+// Older but supported WebViews lack Object.hasOwn and Element.replaceChildren.
+{
+ const context={URLSearchParams,location:{search:'?panel=log'},document:{documentElement:{classList:{add(){}}},createTextNode:text=>({text})}};
+ context.window=context;
+ vm.createContext(context);
+ vm.runInContext(`Object.hasOwn=undefined;class Element {constructor(){this.children=[]}get firstChild(){return this.children[0]||null}removeChild(n){this.children.splice(this.children.indexOf(n),1)}appendChild(n){this.children.push(n)}};this.Element=Element;`,context);
+ vm.runInContext(bridge,context);
+ assert.equal(vm.runInContext(`Object.hasOwn({a:1},'a')&&!Object.hasOwn(Object.create({a:1}),'a')`,context),true);
+ assert.equal(vm.runInContext(`(()=>{const e=new Element();e.appendChild({old:true});e.replaceChildren('new',{next:true});return e.children.length===2&&e.children[0].text==='new'&&e.children[1].next;})()`,context),true);
+ assert.equal(vm.runInContext(`(()=>{const e=new Element();e.appendChild({old:true});e.replaceChildren();return e.children.length===0;})()`,context),true);
+}
+console.log('PASS · Android bridge shim: host contracts, listener isolation, phone titles, inject markers, older WebView API compatibility');

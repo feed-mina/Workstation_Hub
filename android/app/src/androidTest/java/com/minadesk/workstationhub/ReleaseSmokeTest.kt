@@ -52,11 +52,21 @@ class ReleaseSmokeTest {
     private fun visibleWeb(activity: Activity): WebView {
         var web: WebView? = null
         instrumentation.runOnMainSync { web = views(activity.window.decorView).filterIsInstance<WebView>().first { it.visibility == View.VISIBLE } }
-        until("Panel did not load") { js(web!!, "document.readyState === 'complete' && !!document.querySelector('main')") == "true" }
+        until("Panel did not finish booting") {
+            js(web!!, "document.readyState === 'complete' && typeof window.__hubListenerCount === 'function' && window.__hubListenerCount() > 0 && !document.getElementById(new URLSearchParams(location.search).get('panel')).hidden") == "true"
+        }
+        val drawn = CountDownLatch(1)
+        instrumentation.runOnMainSync { web!!.postVisualStateCallback(1L, object : WebView.VisualStateCallback() {
+            override fun onComplete(requestId: Long) { drawn.countDown() }
+        }) }
+        assertTrue("WebView did not commit its display", drawn.await(10, TimeUnit.SECONDS))
         return web!!
     }
 
     private fun screenshot(name: String) {
+        instrumentation.waitForIdleSync()
+        // Let the native window/compositor publish the committed WebView or Activity frame.
+        SystemClock.sleep(350)
         val bitmap = instrumentation.uiAutomation.takeScreenshot()
         assertNotNull(bitmap)
         // Gradle uninstalls the test app after the run. Keep test-only captures in shared media.

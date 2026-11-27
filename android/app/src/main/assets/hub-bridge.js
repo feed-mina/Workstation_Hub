@@ -8,6 +8,9 @@
  const native=()=>window.AndroidHub;
  const existing=window.chrome&&window.chrome.webview;
  if(existing&&typeof existing.postMessage==='function'&&!existing.__androidShim)return; // WebView2 안에서는 아무 일도 하지 않음
+ // Android system images can contain Chromium 80–85. Keep the shared UI's newer APIs usable.
+ if(!Object.hasOwn)Object.defineProperty(Object,'hasOwn',{value:(object,key)=>Object.prototype.hasOwnProperty.call(object,key),configurable:true,writable:true});
+ if(window.Element&&!Element.prototype.replaceChildren)Object.defineProperty(Element.prototype,'replaceChildren',{value:function(...nodes){while(this.firstChild)this.removeChild(this.firstChild);for(const node of nodes)this.appendChild(typeof node==='string'?document.createTextNode(node):node);},configurable:true,writable:true});
  window.chrome=window.chrome||{};
  window.chrome.webview={
   __androidShim:true,
