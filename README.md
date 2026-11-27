@@ -177,6 +177,7 @@ Windows x64에서 .NET Framework 4.8과 PowerShell을 사용합니다. 앱 화�
 | [tests/](tests/) | 별도 임시 프로필로 창 최소화·복원, 메뉴 전환, 창 배치 저장과 재시작을 검사하는 Windows 테스트 |
 | [packaging/](packaging/) | Store 버전의 MSIX 매니페스트와 패키지 아이콘 |
 | [licenses/](licenses/) | WebView2, GSAP, D3, Three.js, Lucide 배포 고지 |
+| [docs/handover/](docs/handover/README.md) | 화면-코드 인수인계 가이드: 각 창의 버튼 → 담당 코드 → 저장 파일 연결, 저장 구조, 실행·검증·문제 진단 |
 
 개발 빌드를 실행할 수 있는 Windows 환경에서 `.\tests\test-windows.ps1`을 실행하면 테스트 결과와 화면 캡처가 저장된 임시 폴더를 확인할 수 있습니다.
 
