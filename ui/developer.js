@@ -104,8 +104,14 @@
    const model=field(body,'모델',node('select')),effort=field(body,'추론 강도',node('select'));
    options(model,state.models.map(value=>[value,value]),state.model);
    options(effort,state.efforts.map(value=>[value,value]),state.effort);
+   let runner;
+   if(state.desktop!==false){
+    runner=field(body,'비공개 Actions 실행 저장소',node('input'));
+    runner.maxLength=140;runner.placeholder=state.actionsRunnerDefault??'소유자/workstation-hub-actions';
+    runner.value=state.actionsRunner??'';
+   }
    action('모델 비교',()=>{closeDialog();modelIds=[];$('model-dialog').showModal();utility('developer-models','show');});
-   action('저장',()=>{send('developer-choose','execution',model.value,{effort:effort.value});closeDialog();},true);
+   action('저장',()=>{send('developer-choose','execution',model.value,{effort:effort.value,runner:runner?.value});closeDialog();},true);
   });
  }
  const requestTypes=[
@@ -130,7 +136,7 @@
  function dialogDraft(item){
   const prompt=item.mode==='prompt',number=prompt?Number(item.id.slice(-1))-1:0;
   const cloud=state.project?.location==='cloud';
-  const help=[state.project?.name,state.branch,cloud?'클라우드':'이 PC',state.model,state.effort].filter(Boolean).join(' · ');
+  const help=[state.project?.name,state.branch,cloud?'GitHub Actions':'이 PC',state.model,state.effort].filter(Boolean).join(' · ');
   dialog(item.label,help,(body,action)=>{
    let skill,kind=item.id;
    if(item.id==='codex-compose'){
@@ -153,7 +159,7 @@
    text.value=prompt?state.prompts[number]:(item.request??state.requests[item.id]??'');
    text.required=true;
    if(prompt)action('이 프로젝트에 저장',()=>{choose(item.id,text.value);closeDialog();});
-   const launch=action(state.desktop===false?'요청 복사 · Codex 열기':cloud?'Codex에서 클라우드 요청 준비':
+   const launch=action(state.desktop===false?'요청 복사 · Codex 열기':cloud?'GitHub Actions에서 시작':
     state.project?.folder?'Codex에서 시작':'Codex 작성창 열기',()=>{
     if(!body.closest('dialog').open||!text.reportValidity())return;
     if(skill&&!skill.reportValidity())return;
@@ -317,7 +323,8 @@
   $('dev-share').title=p?.conflict?'프로젝트 설정에서 공유 충돌을 해결하세요.':data.shareReady?'내 PC끼리 공통 프로젝트 설정을 공유합니다.':'GitHub 연결 화면에서 공유 저장소를 연결하세요.';
   $('dev-context-line').textContent=[p?.repository??(p?.name??'프로젝트 미선택'),
    data.account?data.account+' · GitHub 연결':'GitHub 연결 전',
-   p?.shared?(p.conflict?'공유 충돌':p.pending?'공유 대기':'설정 공유'):'이 PC만',data.model+' / '+data.effort].join('  ·  ');
+   p?.shared?(p.conflict?'공유 충돌':p.pending?'공유 대기':'설정 공유'):'이 PC만',data.model+' / '+data.effort,
+   p?.location==='cloud'?(data.actionsRunner||data.actionsRunnerDefault):null].filter(Boolean).join('  ·  ');
   const status=data.notice||data.branchError||(data.projectBusy?data.projectStatus:null)||(p?.conflict?'공유 충돌은 프로젝트 설정에서 해결하세요.':data.projectStatus);
   $('dev-context-status').hidden=!status;$('dev-context-status').textContent=status??'';
   $('dev-working').hidden=!data.running;$('dev-cancel-run').hidden=!data.verifying;updateCards();

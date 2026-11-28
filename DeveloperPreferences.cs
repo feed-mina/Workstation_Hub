@@ -9,6 +9,7 @@ namespace MinaDesk {
         public int Version { get; set; }
         public string Model { get; set; }
         public string Effort { get; set; }
+        public string ActionsRunner { get; set; }
         public string City { get; set; }
         public Dictionary<string,string> Branches { get; set; }
         public Dictionary<string,string> Prompts { get; set; }

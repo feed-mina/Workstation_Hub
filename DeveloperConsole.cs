@@ -101,6 +101,7 @@ namespace MinaDesk {
                 branches=options==null?new string[0]:options.Names.ToArray(),
                 branchBusy=branchLoading,needBranches=RepoKey!=null && options==null && !branchLoading && retrievedKey!=RepoKey,
                 branchError=retrievedKey==RepoKey?branchError:null,activePr,model=prefs.Model,effort=prefs.Effort,
+                actionsRunner=prefs.Value.ActionsRunner,actionsRunnerDefault=CodexActions.RunnerName(null,skills.GitHub.LoginName),
                 models=DeveloperPreferenceStore.Models,efforts=DeveloperPreferenceStore.Efforts,
                 prompts=PromptKeys.Select(key=>DeveloperPreferenceStore.Lookup(prefs.Value.Prompts,SavedKey(key))??"").ToArray(),
                 threads=ThreadKeys.Select(key=>DeveloperPreferenceStore.Lookup(prefs.Value.Threads,SavedKey(key))??"").ToArray(),
@@ -211,7 +212,7 @@ namespace MinaDesk {
                 DeveloperResult result;
                 if(type=="developer-result-open"){OpenResult(message);return;}
                 if(type=="developer-choose") {
-                    await Choose(owner,id,input,Text(message,"effort"));
+                    await Choose(owner,id,input,Text(message,"effort"),Text(message,"runner"));
                     return;
                 }
                 if(type!="developer-run" || String.IsNullOrEmpty(id))return;
@@ -227,7 +228,7 @@ namespace MinaDesk {
         static bool RecordsAction(string id) {
             return Checks.Contains(id) || id=="tool-lock" || id=="tool-record" || id=="tool-screenshot" || id=="gh-new-pr" || id=="gh-new-issue";
         }
-        async Task Choose(DeskWindow owner,string id,string input,string effort) {
+        async Task Choose(DeskWindow owner,string id,string input,string effort,string runner) {
             switch(id) {
                 case "project":
                     await skills.Handle(owner,"skill-project-select",new Dictionary<string,object>{{"projectId",input}});
@@ -249,7 +250,8 @@ namespace MinaDesk {
                 case "execution":
                     if(!DeveloperPreferenceStore.Models.Contains(input) || !DeveloperPreferenceStore.Efforts.Contains(effort))
                         throw new ArgumentException("지원하는 모델과 추론 강도를 선택하세요.");
-                    prefs.Change(v=>{v.Model=input;v.Effort=effort;});return;
+                    string actionsRunner=CodexActions.RunnerName(runner,null);
+                    prefs.Change(v=>{v.Model=input;v.Effort=effort;v.ActionsRunner=actionsRunner;});return;
                 case "layout": hub.ChangeLayout(input);return;
                 case "theme": hub.ChangeTheme(input);return;
                 case "restore": hub.Restore(true);return;
@@ -414,7 +416,7 @@ namespace MinaDesk {
                 lines.Add("프로젝트 · "+project.Name);
                 if(Repo!=null)lines.Add("GitHub · "+Repo.FullName);
                 if(branch!=null)lines.Add("선택 브랜치 · "+branch);
-                lines.Add("실행 위치 · "+(project.Location=="cloud"?"클라우드":"이 PC"));
+                lines.Add("실행 위치 · "+(project.Location=="cloud"?"GitHub Actions":"이 PC"));
             }
             if(id=="codex-skill-use") {
                 var skill=skills.Installed.FirstOrDefault(s=>s.Id==skillId);
@@ -425,6 +427,11 @@ namespace MinaDesk {
             }
             if(request.Length>0)lines.Add("\r\n"+request);
             string draft=String.Join("\r\n",lines).Trim();
+            if(project!=null && project.Location=="cloud" && request.Length>0) {
+                var targetRepo=RequireRepo();
+                var runner=CodexActions.RunnerName(prefs.Value.ActionsRunner,skills.GitHub.LoginName);
+                return await CodexActions.Submit(skills.GitHub,targetRepo,branch,runner,draft,prefs.Model,prefs.Effort,lifetime.Token);
+            }
             string folder=skills.Folder;
             if(Directory.Exists(folder) && request.Length>0) {
                 if(branch!=null && branch!=await DeveloperGitHub.LocalBranch(folder,lifetime.Token))
@@ -448,9 +455,8 @@ namespace MinaDesk {
             if(target.Length>30000)throw new ArgumentException("Codex 작성창에 전달할 요청문이 너무 깁니다.");
             Codex(target);
             string settings=prefs.Model+" · "+prefs.Effort;
-            return new DeveloperResult{title="Codex 요청 준비",summary=project==null?
-                "Codex에 요청문을 넣은 작성창 열기를 요청했습니다. 작업 환경과 "+settings+" 설정을 확인한 뒤 보내세요.":
-                "Codex에 요청문을 넣은 작성창 열기를 요청했습니다. 클라우드와 저장소·브랜치, "+settings+" 설정을 확인한 뒤 보내세요.",body=draft};
+            return new DeveloperResult{title="Codex 요청 준비",
+                summary="Codex에 요청문을 넣은 작성창 열기를 요청했습니다. 작업 환경과 "+settings+" 설정을 확인한 뒤 보내세요.",body=draft};
         }
         async void ObserveCodexCompletion(DeskWindow owner,CodexSubmission sent) {
             if(!await sent.Completion && !disposed && !owner.IsDisposed)

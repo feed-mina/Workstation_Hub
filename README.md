@@ -19,7 +19,7 @@ cd android; .\gradlew assembleDebug
 
 매크로 패드의 **개발자 컨트롤** 또는 트레이 메뉴에서 열 수 있습니다. **창 배치**는 기존 4창, 6창 확장, 개발자 모드를 제공하며, 각 창은 독립적으로 이동하고 최소화할 수 있습니다. 창 위치와 녹색·네온 테마는 이 PC에 저장합니다.
 
-- **Codex 작업**의 작성창에서 작업 유형을 고릅니다. 프롬프트 1·2·3과 채팅 링크는 프로젝트별로 이 PC에 저장합니다. **이 PC**의 연결된 프로젝트는 로그인된 공식 Codex가 실행 설정의 모델과 추론 강도를 확인한 뒤 작업을 시작합니다. 추가 권한이 필요한 작업은 Codex 앱에서 확인합니다. **클라우드**는 요청문을 채운 작성창을 열고, Codex 앱에서 작업 환경·저장소·브랜치와 모델·추론 강도를 선택해 보냅니다. **채팅 찾기**와 **파일 트리**는 Windows의 Codex 앱 명령을 호출하고, **Git 검토**는 선택 브랜치의 커밋과 병합 관계를 읽습니다. [Codex 앱 연결](https://learn.chatgpt.com/docs/reference/commands) · [Codex App Server](https://learn.chatgpt.com/docs/app-server)
+- **Codex 작업**의 작성창에서 작업 유형을 고릅니다. 프롬프트 1·2·3과 채팅 링크는 프로젝트별로 이 PC에 저장합니다. **이 PC**의 연결된 프로젝트는 로그인된 공식 Codex가 모델과 추론 강도를 확인한 뒤 작업을 시작합니다. **GitHub Actions** 위치에서는 비공개 실행 저장소로 요청을 즉시 보내고 프로젝트의 선택 브랜치와 커밋, 모델, 추론 강도를 전달합니다. **채팅 찾기**와 **파일 트리**는 Windows의 Codex 앱 명령을 호출하고, **Git 검토**는 선택 브랜치의 커밋과 병합 관계를 읽습니다. [GitHub Actions 연결](docs/actions/README.md) · [Codex 앱 연결](https://learn.chatgpt.com/docs/reference/commands)
 - **GitHub**에서 연결한 계정과 프로젝트를 사용해 브랜치, PR, Actions, 산출물, 배포 및 릴리스 기록을 조회합니다. 브랜치 선택은 허브의 조회 범위에 적용됩니다. PR·이슈 생성은 GitHub의 작성 화면에서 완료합니다.
 - **도구·웹앱·폴더**에서 Windows 도구와 사이트, 폴더를 엽니다. 이 PC에서 검증을 실행할 때는 프로젝트 경로와 명령을 확인하고, 종료 코드와 출력을 확인할 수 있습니다. 개인 링크와 폴더는 **바로가기 설정**에서 저장합니다.
 - **보조 위젯**에는 PC 시계·월간 달력과 Google Calendar, 서비스별 AI 사용량 화면, 빠른 실행이 있습니다. 도시를 선택하면 Open-Meteo의 예보를 표시합니다. **PC 성능**의 GPU 수치는 Windows에서 카운터를 제공하는 경우 표시합니다. [Open-Meteo](https://open-meteo.com/)
