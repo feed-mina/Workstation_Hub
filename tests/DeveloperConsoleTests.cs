@@ -49,6 +49,7 @@ static class DeveloperConsoleTests {
         Reject(()=>github.Graph(repo,"refs/../main",token).GetAwaiter().GetResult(),"invalid branch cannot change the graph request");
         Check(transport.Routes.Count==requests,"validation happens before network");
         Check(!DeveloperGitHub.GitHubUrl("https://github.com.invalid/a") && !DeveloperGitHub.GitHubUrl("https://user@github.com/a"),"GitHub result link allowlist");
+        CheckActions(repo,token);
 
         var preferences=new DeveloperPreferenceStore(folder);
         preferences.Change(v=>{v.Prompts["a/prompt-1"]="First project";v.Prompts["b/prompt-1"]="Second project";v.City="서울";});
@@ -73,6 +74,54 @@ static class DeveloperConsoleTests {
         Reject(()=>DeveloperVerification.Plan("validate-any",folder),"arbitrary execution request rejected");
         Console.WriteLine("PASS · "+count+" developer console checks");
         return count;
+    }
+
+    static void CheckActions(GitHubRepository repo,CancellationToken token) {
+        var fixture=new ActionsFixture();
+        const string branch="feature/panel",prompt="한국어 요청문 · 파일을 열어 주세요.";
+        Check(CodexActions.RunnerName(null,"owner")=="owner/workstation-hub-actions","default Actions repository follows the connected account");
+        var result=CodexActions.Submit(fixture,repo,branch,ActionsFixture.Runner,prompt,"GPT-6.2 Sol","High",token).GetAwaiter().GetResult();
+        var inputs=fixture.Payload["inputs"] as Dictionary<string,object>;
+        Check(GitHubValues.Text(fixture.Payload,"ref")=="main" && GitHubValues.Bool(fixture.Payload,"return_run_details"),
+            "workflow is dispatched from the private runner's default branch with run details");
+        Check(GitHubValues.Text(inputs,"target")==repo.FullName && GitHubValues.Text(inputs,"branch")==branch &&
+            GitHubValues.Text(inputs,"revision")==ActionsFixture.Revision && GitHubValues.Text(inputs,"private_repository")=="true",
+            "target repository, branch, pinned SHA and private checkout flag are passed independently");
+        Check(GitHubValues.Text(inputs,"model")=="gpt-6.2-sol" && GitHubValues.Text(inputs,"effort")=="high" &&
+            GitHubValues.Text(inputs,"prompt")==prompt,"Sol High and Unicode prompt survive the Windows GitHub encoding");
+        Check(result.rows.Single().Address=="https://github.com/"+ActionsFixture.Runner+"/actions/runs/321" && result.body==null,
+            "the run link points to the private runner without exposing the prompt in the UI result");
+        fixture.PrivateRunner=false;
+        Reject(()=>CodexActions.Submit(fixture,repo,branch,ActionsFixture.Runner,prompt,"GPT-6.2 Sol","High",token).GetAwaiter().GetResult(),
+            "public runner rejects before dispatch");
+        Check(fixture.Dispatches==1,"public runner did not receive the prompt");
+        fixture.PrivateRunner=true;fixture.DispatchStatus=0;
+        var uncertain=CodexActions.Submit(fixture,repo,branch,ActionsFixture.Runner,prompt,"GPT-6.2 Sol","High",token).GetAwaiter().GetResult();
+        Check(fixture.Dispatches==2 && uncertain.title.Contains("확인 필요") && uncertain.rows.Single().Address.EndsWith(CodexActions.Workflow),
+            "a lost response surfaces the workflow without an automatic second dispatch");
+    }
+
+    sealed class ActionsFixture : IGitHubApi {
+        internal const string Runner="owner/private-actions",Revision="1234567890abcdef1234567890abcdef12345678";
+        internal bool PrivateRunner=true;
+        internal int Dispatches,DispatchStatus=200;
+        internal Dictionary<string,object> Payload;
+        public Task<GitHubResponse> Send(string path,string method,object body,CancellationToken token) {
+            GitHubResponse response;
+            if(path=="repos/"+Runner && method=="GET")
+                response=new GitHubResponse{Status=200,Json=LocalData.Encode(new{id=7,name="private-actions",full_name=Runner,
+                    html_url="https://github.com/"+Runner,@private=PrivateRunner,default_branch="main"})};
+            else if(path=="repos/owner/sample/branches/feature%2Fpanel" && method=="GET")
+                response=new GitHubResponse{Status=200,Json=LocalData.Encode(new{name="feature/panel",commit=new{sha=Revision}})};
+            else if(path=="repos/"+Runner+"/actions/workflows/"+CodexActions.Workflow+"/dispatches" && method=="POST") {
+                Dispatches++;
+                string encoded=GitHubProjects.EncodeRequest(body);
+                if(encoded.Any(c=>c>127))throw new Exception("GitHub transport request is not ASCII-safe JSON");
+                Payload=LocalData.Decode<Dictionary<string,object>>(encoded);
+                response=new GitHubResponse{Status=DispatchStatus,Json="{\"workflow_run_id\":321}"};
+            }else throw new Exception("Unexpected Actions route "+method+" "+path);
+            return Task.FromResult(response);
+        }
     }
 
     sealed class Fixture : IGitHubApi {

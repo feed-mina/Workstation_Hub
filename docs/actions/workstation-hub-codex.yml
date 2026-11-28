@@ -1,0 +1,146 @@
+name: Workstation Hub Codex
+run-name: Workstation Hub Codex · ${{ inputs.request_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Selected GitHub repository (owner/name)
+        type: string
+        required: true
+      branch:
+        description: Selected branch name
+        type: string
+        required: true
+      revision:
+        description: Commit SHA resolved from that branch by Workstation Hub
+        type: string
+        required: true
+      private_repository:
+        description: Whether checkout needs the runner's repository read token
+        type: boolean
+        default: false
+      model:
+        description: Codex model
+        type: choice
+        options: [gpt-6.2-sol, gpt-6.2-astra]
+        default: gpt-6.2-sol
+      effort:
+        description: Reasoning effort
+        type: choice
+        options: [low, medium, high, xhigh]
+        default: medium
+      prompt:
+        description: Workstation Hub request
+        type: string
+        required: true
+      request_id:
+        description: Unique Workstation Hub request identifier
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  codex:
+    if: ${{ github.event.repository.private == true }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Validate request and prepare prompt
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import subprocess
+
+          data = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))["inputs"]
+          if not re.fullmatch(r"[A-Za-z0-9-]+/[A-Za-z0-9_.-]+", data["target"]):
+              raise SystemExit("Invalid target repository")
+          branch = data["branch"]
+          if len(branch) > 255 or branch.startswith("-") or subprocess.run(
+              ["git", "check-ref-format", "refs/heads/" + branch], capture_output=True
+          ).returncode:
+              raise SystemExit("Invalid branch")
+          if not re.fullmatch(r"[0-9a-f]{40}", data["revision"]):
+              raise SystemExit("Invalid commit SHA")
+          if not re.fullmatch(r"[0-9a-f]{32}", data["request_id"]):
+              raise SystemExit("Invalid request ID")
+          if data["model"] not in {"gpt-6.2-sol", "gpt-6.2-astra"}:
+              raise SystemExit("Unsupported model")
+          if data["effort"] not in {"low", "medium", "high", "xhigh"}:
+              raise SystemExit("Unsupported reasoning effort")
+          prompt = data["prompt"]
+          if not prompt.strip() or len(prompt) > 6000 or "\0" in prompt:
+              raise SystemExit("Invalid prompt")
+          base = Path(os.environ["RUNNER_TEMP"])
+          (base / "workstation-hub-prompt.txt").write_text(prompt, encoding="utf-8")
+          (base / "workstation-hub-result").mkdir()
+          print(f'{data["target"]} · {branch} · {data["revision"][:12]} · {data["model"]} · {data["effort"]}')
+          PY
+
+      - name: Verify OpenAI key is available to this run
+        shell: bash
+        env:
+          OPENAI_KEY_STATUS: ${{ secrets.OPENAI_API_KEY != '' && 'present' || 'missing' }}
+        run: |
+          if [[ "$OPENAI_KEY_STATUS" != present ]]; then
+            echo "::error::This run did not receive OPENAI_API_KEY from the private runner's Actions secrets. Verify the repository secret, then start a new run."
+            exit 1
+          fi
+
+      - name: Verify private checkout credentials
+        if: ${{ inputs.private_repository && inputs.target != github.repository }}
+        shell: bash
+        env:
+          REPOSITORY_TOKEN_STATUS: ${{ secrets.HUB_REPOSITORY_READ_TOKEN != '' && 'present' || 'missing' }}
+        run: |
+          if [[ "$REPOSITORY_TOKEN_STATUS" != present ]]; then
+            echo "::error::Cross-repository private checkout needs HUB_REPOSITORY_READ_TOKEN."
+            exit 1
+          fi
+
+      - name: Check out the selected revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: ${{ inputs.target }}
+          ref: ${{ inputs.revision }}
+          token: ${{ inputs.private_repository && inputs.target != github.repository && secrets.HUB_REPOSITORY_READ_TOKEN || github.token }}
+          persist-credentials: false
+
+      - name: Verify checkout
+        shell: bash
+        env:
+          EXPECTED_REVISION: ${{ inputs.revision }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_REVISION"
+
+      - name: Run Codex with the selected model and effort
+        uses: openai/codex-action@306c6a196a99dcc6582530c396a19d2672d5e9ec # v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: ${{ runner.temp }}/workstation-hub-prompt.txt
+          model: ${{ inputs.model }}
+          effort: ${{ inputs.effort }}
+          sandbox: workspace-write
+          safety-strategy: drop-sudo
+          output-file: ${{ runner.temp }}/workstation-hub-result/response.md
+
+      - name: Collect changes
+        shell: bash
+        env:
+          EXPECTED_REVISION: ${{ inputs.revision }}
+        run: |
+          git -c core.hooksPath=/dev/null add --intent-to-add --all
+          git diff --no-ext-diff --no-textconv --binary "$EXPECTED_REVISION" -- > "$RUNNER_TEMP/workstation-hub-result/changes.patch"
+
+      - name: Save private execution result
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: workstation-hub-result
+          path: ${{ runner.temp }}/workstation-hub-result/
+          if-no-files-found: error
+          retention-days: 7

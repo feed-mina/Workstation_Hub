@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -129,9 +130,13 @@ namespace MinaDesk {
             RequireSecureStorage();
             var args=new List<string>{"api","--hostname","github.com","--method",method,"-H","Accept: application/vnd.github+json","-H","X-GitHub-Api-Version: 2022-11-28",path};
             if(body!=null){args.Add("--input");args.Add("-");}
-            var r=await GitHubCommand.Run(exe,args.ToArray(),config,body==null?null:LocalData.Encode(body),null,stop,45000);
+            var r=await GitHubCommand.Run(exe,args.ToArray(),config,body==null?null:EncodeRequest(body),null,stop,45000);
             var match=Regex.Match(r.Error??"",@"HTTP\s+(\d{3})");
             return new GitHubResponse{Status=r.Code==0?200:match.Success?Int32.Parse(match.Groups[1].Value):r.Error!=null && r.Error.IndexOf("auth login",StringComparison.OrdinalIgnoreCase)>=0?401:0,Json=r.Output};
+        }
+        internal static string EncodeRequest(object body) {
+            // GitHub JSON input must survive the Windows console code page used by the bundled CLI.
+            return Regex.Replace(LocalData.Encode(body),@"[^\u0000-\u007f]",m=>"\\u"+((int)m.Value[0]).ToString("x4",CultureInfo.InvariantCulture));
         }
         internal Task Logout(CancellationToken stop) {
             // gh's Windows keyring is also used by the user's standalone CLI. Disconnect only Hub's metadata.
