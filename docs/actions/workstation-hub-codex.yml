@@ -83,6 +83,16 @@ jobs:
           print(f'{data["target"]} · {branch} · {data["revision"][:12]} · {data["model"]} · {data["effort"]}')
           PY
 
+      - name: Verify OpenAI key is available to this run
+        shell: bash
+        env:
+          OPENAI_KEY_STATUS: ${{ secrets.OPENAI_API_KEY != '' && 'present' || 'missing' }}
+        run: |
+          if [[ "$OPENAI_KEY_STATUS" != present ]]; then
+            echo "::error::This run did not receive OPENAI_API_KEY from the private runner's Actions secrets. Verify the repository secret, then start a new run."
+            exit 1
+          fi
+
       - name: Verify private checkout credentials
         if: ${{ inputs.private_repository && inputs.target != github.repository }}
         shell: bash
