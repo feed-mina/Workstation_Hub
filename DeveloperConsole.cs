@@ -408,11 +408,12 @@ namespace MinaDesk {
             if(id=="gh-codex")RequireRepo();
             string request=CheckedPrompt(input);
             var project=Project;
+            string branch=Branch;
             var lines=new List<string>();
             if(project!=null) {
                 lines.Add("프로젝트 · "+project.Name);
                 if(Repo!=null)lines.Add("GitHub · "+Repo.FullName);
-                if(Branch!=null)lines.Add("선택 브랜치 · "+Branch);
+                if(branch!=null)lines.Add("선택 브랜치 · "+branch);
                 lines.Add("실행 위치 · "+(project.Location=="cloud"?"클라우드":"이 PC"));
             }
             if(id=="codex-skill-use") {
@@ -426,6 +427,8 @@ namespace MinaDesk {
             string draft=String.Join("\r\n",lines).Trim();
             string folder=skills.Folder;
             if(Directory.Exists(folder) && request.Length>0) {
+                if(branch!=null && branch!=await DeveloperGitHub.LocalBranch(folder,lifetime.Token))
+                    throw new InvalidOperationException("현재 로컬 Git 브랜치가 "+branch+"와 다릅니다. 브랜치를 확인한 뒤 다시 시작하세요.");
                 string cli=AiCli.Find("gpt");
                 var sent=await CodexLocal.Submit(cli,folder,draft,CodexLocal.ModelId(prefs.Model),CodexLocal.EffortId(prefs.Effort),lifetime.Token);
                 ObserveCodexCompletion(owner,sent);

@@ -82,15 +82,10 @@ namespace MinaDesk {
             return new DeveloperResult{title="Git 검토 · 커밋 그래프",summary=source+" · 최근 최대 30개 커밋",graph=true};
         }
         internal static async Task<DeveloperResult> LocalGraph(string name,string folder,CancellationToken token) {
-            if(!Directory.Exists(folder))throw new DirectoryNotFoundException("연결한 프로젝트 폴더를 확인하세요.");
-            string git=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"Git","cmd","git.exe");
-            if(!File.Exists(git))throw new InvalidOperationException("로컬 Git 그래프를 보려면 Git for Windows를 설치하세요.");
-            string config=Path.Combine(Path.GetTempPath(),"hub-git-unused");
-            var branch=await GitHubCommand.Run(git,new[]{"-C",folder,"rev-parse","--abbrev-ref","HEAD"},config,null,null,token,15000);
-            if(branch.Code!=0)throw new InvalidOperationException("이 프로젝트의 Git 브랜치를 읽을 수 없습니다.");
-            var log=await GitHubCommand.Run(git,new[]{"-C",folder,"log","--topo-order","-30","-z","--format=%H%x00%P%x00%aI%x00%s","HEAD","--"},config,null,null,token,15000);
+            string branch=await LocalBranch(folder,token);
+            var log=await LocalGit(folder,new[]{"log","--topo-order","-30","-z","--format=%H%x00%P%x00%aI%x00%s","HEAD","--"},token);
             if(log.Code!=0)throw new InvalidOperationException("이 프로젝트의 Git 커밋을 읽을 수 없습니다.");
-            var result=GraphResult(name+" · "+branch.Output.Trim()+" · 이 PC");
+            var result=GraphResult(name+" · "+branch+" · 이 PC");
             string[] fields=log.Output.Split('\0');
             for(int i=0;i+3<fields.Length;i+=4) {
                 DateTimeOffset date;
@@ -98,6 +93,17 @@ namespace MinaDesk {
                 AddCommit(result,fields[i],fields[i+3],time,fields[i+1].Split(' '));
             }
             return result;
+        }
+        internal static async Task<string> LocalBranch(string folder,CancellationToken token) {
+            var branch=await LocalGit(folder,new[]{"rev-parse","--abbrev-ref","HEAD"},token);
+            if(branch.Code!=0)throw new InvalidOperationException("이 프로젝트의 Git 브랜치를 읽을 수 없습니다.");
+            return branch.Output.Trim();
+        }
+        static Task<CommandOutput> LocalGit(string folder,string[] args,CancellationToken token) {
+            if(!Directory.Exists(folder))throw new DirectoryNotFoundException("연결한 프로젝트 폴더를 확인하세요.");
+            string git=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"Git","cmd","git.exe");
+            if(!File.Exists(git))throw new InvalidOperationException("로컬 Git 브랜치를 확인하려면 Git for Windows를 설치하세요.");
+            return GitHubCommand.Run(git,new[]{"-C",folder}.Concat(args).ToArray(),Path.Combine(Path.GetTempPath(),"hub-git-unused"),null,null,token,15000);
         }
         internal static void AddCommit(DeveloperResult result,string sha,string message,string date,IEnumerable<string> parents,string address=null) {
             if(!ValidSha(sha))return;
