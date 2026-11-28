@@ -83,18 +83,13 @@ jobs:
           print(f'{data["target"]} · {branch} · {data["revision"][:12]} · {data["model"]} · {data["effort"]}')
           PY
 
-      - name: Verify runner credentials
+      - name: Verify private checkout credentials
+        if: ${{ inputs.private_repository && inputs.target != github.repository }}
         shell: bash
         env:
-          HAS_OPENAI_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
-          HAS_REPOSITORY_TOKEN: ${{ secrets.HUB_REPOSITORY_READ_TOKEN != '' }}
-          NEEDS_REPOSITORY_TOKEN: ${{ inputs.private_repository && inputs.target != github.repository }}
+          REPOSITORY_TOKEN_STATUS: ${{ secrets.HUB_REPOSITORY_READ_TOKEN != '' && 'present' || 'missing' }}
         run: |
-          if [[ "$HAS_OPENAI_KEY" != true ]]; then
-            echo "::error::Add OPENAI_API_KEY to the private runner's Actions secrets."
-            exit 1
-          fi
-          if [[ "$NEEDS_REPOSITORY_TOKEN" == true && "$HAS_REPOSITORY_TOKEN" != true ]]; then
+          if [[ "$REPOSITORY_TOKEN_STATUS" != present ]]; then
             echo "::error::Cross-repository private checkout needs HUB_REPOSITORY_READ_TOKEN."
             exit 1
           fi
