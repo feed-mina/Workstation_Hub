@@ -6,14 +6,12 @@
  const card=(id,label,icon,mode='open')=>({id,label,icon,mode});
  const groups={
   'Codex':[
-   card('project','프로젝트','folder','select'),card('model','모델','settings','choice'),card('effort','추론 강도','settings','choice'),card('codex-new','새 채팅','plus','draft'),
-   card('codex-compose','작성창','file','draft'),card('codex-approval','확인 요청','shield','draft'),card('codex-palette','명령 메뉴','terminal','help'),card('open-projects','프로젝트 목록','list'),
-   card('codex-previous','이전 채팅','back','help'),card('codex-next','다음 채팅','arrow','help'),card('codex-find-chat','채팅 찾기','search','help'),card('codex-model-comparison','모델 비교','branch','compare-models'),
-   card('codex-find-file','파일 찾기','search','help'),card('codex-file-tree','파일 트리','folder','help'),card('codex-recent-1','최근 채팅 1','clock','thread'),card('codex-recent-2','최근 채팅 2','clock','thread'),
-   card('codex-bug','버그 수정','alert','draft'),card('codex-feature','기능 개발','star','draft'),card('codex-analyze','코드 분석','code','draft'),card('codex-refactor','리팩터링','refresh','draft'),
-   card('validate-types','타입 검사','check','confirm'),card('validate-test','테스트','play','confirm'),card('validate-build','빌드','box','confirm'),card('validate-all','전체 검증','shield','confirm'),
-   card('codex-skills','스킬 목록','list','read'),card('codex-skill-use','스킬 사용','star','draft'),card('codex-skill-create','스킬 만들기','plus','draft'),card('prompt-1','프롬프트 1','chat','prompt'),
-   card('prompt-2','프롬프트 2','chat','prompt'),card('prompt-3','프롬프트 3','chat','prompt'),card('codex-git','Git 검토','branch','draft'),card('codex-settings','앱 설정','settings')
+   card('codex-compose','Codex 작업','file','draft'),card('execution','실행 설정','settings','choice'),
+   card('saved-chats','저장한 채팅','clock','thread'),card('codex-find-chat','채팅 찾기','search'),
+   card('codex-file-tree','파일 트리','folder'),card('git-graph','Git 검토','branch','read'),
+   card('local-checks','로컬 검증','shield','confirm'),card('skills-menu','스킬','star','read'),
+   card('prompt-1','프롬프트 1','chat','prompt'),card('prompt-2','프롬프트 2','chat','prompt'),
+   card('prompt-3','프롬프트 3','chat','prompt'),card('codex-settings','앱 설정','settings')
   ],
   'GitHub':[
    card('gh-hub','Workstation_Hub','star','select'),card('gh-work-cycle','work-cycle','star','select'),card('project','저장소 선택','list','select'),card('gh-code','코드','code','read'),
@@ -56,7 +54,7 @@
  };
  const modes={open:'열기',select:'선택',choice:'설정',read:'조회',search:'검색',pr:'PR 조회',compare:'브랜치 선택','compare-models':'최신 · 기존 모델',confirm:'확인 필요',draft:'요청 준비',prompt:'요청 저장',thread:'채팅 링크',help:'앱에서 실행'};
  const titles={'Codex':'AI 작업 제어','GitHub':'저장소 및 개발 흐름','도구':'Windows 도구','웹앱':'웹 바로가기','폴더':'이 PC의 폴더'};
- const hints={'Codex':'모델과 추론 강도는 요청문에 담을 선호값입니다. 적용 여부는 Codex에서 확인하세요.',
+ const hints={'Codex':'선택한 프로젝트의 작업을 준비하고 시작합니다.',
    'GitHub':'선택한 저장소의 실제 데이터를 조회합니다. PR·이슈는 GitHub에서 작성합니다.',
    '도구':'현재 PC에서 실행합니다. 집중 모드는 허브의 집중 표시를 바꿉니다.',
    '웹앱':'기본 브라우저에서 엽니다. 개인 링크는 바로가기 설정에서 저장하세요.',
@@ -101,32 +99,66 @@
  function field(body,label,input){
   const wrapper=node('label',label,'dev-dialog-field');wrapper.append(input);body.append(wrapper);return input;
  }
- function dialogChoice(item){
-  const model=item.id==='model';
-  dialog(item.label,'이 PC에 저장하며 Codex 요청문을 준비할 때 사용합니다.',(body,action)=>{
-   const select=field(body,item.label,node('select'));
-   options(select,(model?state.models:state.efforts).map(value=>[value,value]),state[item.id]);
-   action('저장',()=>{choose(item.id,select.value);closeDialog();},true);
+ function dialogExecution(item){
+  dialog(item.label,'새 Codex 작업에 사용할 모델과 추론 강도를 저장합니다.',(body,action)=>{
+   const model=field(body,'모델',node('select')),effort=field(body,'추론 강도',node('select'));
+   options(model,state.models.map(value=>[value,value]),state.model);
+   options(effort,state.efforts.map(value=>[value,value]),state.effort);
+   action('모델 비교',()=>{closeDialog();modelIds=[];$('model-dialog').showModal();utility('developer-models','show');});
+   action('저장',()=>{send('developer-choose','execution',model.value,{effort:effort.value});closeDialog();},true);
+  });
+ }
+ const requestTypes=[
+  ['codex-compose','작성창'],['codex-approval','확인 요청'],['codex-bug','버그 수정'],
+  ['codex-feature','기능 개발'],['codex-analyze','코드 분석'],['codex-refactor','리팩터링']
+ ];
+ function showShortcuts(){
+  dialog('단축키','Codex 앱이 활성화된 상태에서 사용합니다.',body=>{
+   for(const [label,key] of [['이전 채팅','Ctrl + Shift + Tab'],['다음 채팅','Ctrl + Tab'],['채팅 찾기','앱 설정에서 지정'],
+     ['명령 메뉴','Ctrl + Shift + P'],['파일 찾기','Ctrl + P'],['파일 트리','Ctrl + Shift + E']]){
+    const row=node('div','','dev-setting-row');row.append(node('span',label),node('kbd',key));body.append(row);
+   }
+  });
+ }
+ function dialogMenu(title,items){
+  dialog(title,'',(body)=>{
+   const list=node('div','','dev-menu');
+   for(const [label,activateItem] of items)list.append(button(label,()=>{closeDialog();activateItem();}));
+   body.append(list);
   });
  }
  function dialogDraft(item){
   const prompt=item.mode==='prompt',number=prompt?Number(item.id.slice(-1))-1:0;
-  const help=state.project?.location==='cloud'?'클라우드에서 사용할 요청을 복사합니다. Codex에서 저장소와 환경을 선택한 뒤 붙여넣으세요.':
-   'Codex에서 열 요청을 확인하세요. 전송은 Codex 작성창에서 진행합니다.';
+  const cloud=state.project?.location==='cloud';
+  const help=[state.project?.name,state.branch,cloud?'클라우드':'이 PC',state.model,state.effort].filter(Boolean).join(' · ');
   dialog(item.label,help,(body,action)=>{
-   let skill;
+   let skill,kind=item.id;
+   if(item.id==='codex-compose'){
+    const list=node('fieldset','','dev-request-types');
+    list.append(node('legend','요청 유형'));
+    const grid=node('div','','dev-menu');
+    for(const [id,label] of requestTypes){
+     const choice=node('label',label);
+     const input=node('input');input.type='radio';input.name='dev-request-type';input.value=id;input.checked=id===kind;
+     input.onchange=()=>{kind=id;text.value=state.requests[id]??'';};
+     choice.prepend(input);grid.append(choice);
+    }
+    list.append(grid);body.append(list);
+   }
    if(item.id==='codex-skill-use'){
     skill=field(body,'설치된 스킬',node('select'));
     options(skill,[['','스킬 선택'],...state.catalog.map(s=>[s.id,s.name+' · '+s.source])],'');
    }
    const text=field(body,'요청문',node('textarea'));text.maxLength=4000;text.rows=5;
-   text.value=prompt?state.prompts[number]:(state.requests[item.id]??'');
+   text.value=prompt?state.prompts[number]:(item.request??state.requests[item.id]??'');
+   text.required=true;
    if(prompt)action('이 프로젝트에 저장',()=>{choose(item.id,text.value);closeDialog();});
-   const launch=action(state.project?.location==='cloud'?'요청 복사 · Codex 열기':'Codex에서 열기',()=>{
+   const launch=action(state.desktop===false?'요청 복사 · Codex 열기':cloud?'Codex에서 클라우드 요청 준비':
+    state.project?.folder?'Codex에서 시작':'Codex 작성창 열기',()=>{
     if(!body.closest('dialog').open||!text.reportValidity())return;
     if(skill&&!skill.reportValidity())return;
     const value=text.value,selected=skill?.value;
-    closeDialog();run(item.id,value,{skill:selected});
+    closeDialog();run(kind,value,{skill:selected});
    },true);
    if(skill){skill.required=true;launch.disabled=true;skill.onchange=()=>{launch.disabled=!skill.value;};}
   });
@@ -198,13 +230,23 @@
  }
  function activate(item){
   if(!state||state.running)return;
+  if(item.id==='execution'){dialogExecution(item);return;}
+  if(item.id==='saved-chats'){
+   dialogMenu(item.label,state.threads.map((_,index)=>['채팅 '+(index+1),()=>dialogThread(card('codex-recent-'+(index+1),'채팅 '+(index+1),'clock','thread'))]));return;
+  }
+  if(item.id==='local-checks'){
+   dialogMenu(item.label,[['전체 검증',()=>run('validate-all')],['테스트',()=>run('validate-test')],['타입 검사',()=>run('validate-types')],['빌드',()=>run('validate-build')]]);return;
+  }
+  if(item.id==='skills-menu'){
+   dialogMenu(item.label,[['스킬 목록',()=>run('codex-skills')],['스킬 사용',()=>dialogDraft(card('codex-skill-use','스킬 사용','star','draft'))],
+    ['스킬 만들기',()=>dialogDraft(card('codex-skill-create','스킬 만들기','plus','draft'))]]);return;
+  }
   if(item.id==='codex-model-comparison'){
    modelIds=[];
    $('model-dialog').showModal();utility('developer-models','show');return;
   }
   if(item.id==='project'){$('dev-project').focus();return;}
   if(item.id==='folder-settings'){dialogSettings('folders');return;}
-  if(item.mode==='choice'){dialogChoice(item);return;}
   if(item.mode==='draft'||item.mode==='prompt'){dialogDraft(item);return;}
   if(item.mode==='thread'){dialogThread(item);return;}
   if(item.mode==='search'){dialogSearch(item);return;}
@@ -228,12 +270,14 @@
  }
  function changeTab(name){
   active=name;$('dev-search').value='';$('dev-result').hidden=true;
+  $('dev-shortcuts').hidden=active!=='Codex';
   for(const tab of $('dev-tabs').children){const selected=tab.textContent===name;tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected?0:-1;if(selected)lastTabButton=tab;}
   $('dev-action-panel').setAttribute('aria-labelledby',lastTabButton.id);
   $('dev-tab-title').textContent=titles[active];$('dev-tab-hint').textContent=hints[active];renderCards();
  }
  function renderCards(){
-  const query=$('dev-search').value.trim().toLowerCase(),list=groups[active].filter(item=>item.label.toLowerCase().includes(query));
+  const query=$('dev-search').value.trim().toLowerCase();
+  const list=groups[active].filter(item=>item.label.toLowerCase().includes(query)||item.id==='codex-compose'&&requestTypes.some(([,label])=>label.includes(query)));
   const cards=$('dev-cards');
   cards.replaceChildren();
   for(const item of list){
@@ -248,6 +292,7 @@
  function updateCards(){
   for(const item of $('dev-cards').querySelectorAll('button')){
    item.disabled=!state||state.running;
+   if(item.dataset.card==='execution'&&state)item.querySelector('small').textContent=state.model+' · '+state.effort;
    if(item.dataset.card==='tool-focus')item.setAttribute('aria-pressed',String(state?.focus===true));
   }
  }
@@ -278,11 +323,77 @@
   $('dev-working').hidden=!data.running;$('dev-cancel-run').hidden=!data.verifying;updateCards();
   if(data.needBranches)send('developer-auto-branches');
  }
+ function orderCommits(commits){
+  const descendants=new Map(commits.map(row=>[row.commit,0]));
+  for(const row of commits)for(const parent of row.parents)if(descendants.has(parent))descendants.set(parent,descendants.get(parent)+1);
+  const pending=commits.slice(),ordered=[];
+  while(pending.length){
+   const index=pending.findIndex(row=>descendants.get(row.commit)===0);
+   if(index<0)return commits;
+   const [row]=pending.splice(index,1);
+   ordered.push(row);
+   for(const parent of row.parents)if(descendants.has(parent))descendants.set(parent,descendants.get(parent)-1);
+  }
+  return ordered;
+ }
+ function renderGitGraph(container,data){
+  const commits=orderCommits(data.rows.filter(row=>row.commit));
+  if(!commits.length){container.append(node('p','표시할 커밋이 없습니다.','dev-muted'));return;}
+  const height=38,width=82,svg=graphic('svg',{width,height:height*commits.length,'aria-hidden':'true'});
+  const lanes=[commits[0].commit],known=new Set(commits.map(row=>row.commit)),palette=['#a4e289','#70c6de','#efc56f','#d9a4e5'];
+  const graph=node('div','','dev-git-graph'),scroll=node('div','','dev-git-scroll'),detail=node('div','','dev-result-row');
+  scroll.tabIndex=0;scroll.setAttribute('aria-label','커밋과 병합 관계');
+  const positions=[],edges=[],controls=[];
+  for(const [index,row] of commits.entries()){
+   if(!lanes.includes(row.commit))lanes.push(row.commit);
+   const lane=lanes.indexOf(row.commit),before=lanes.slice(),parents=row.parents.filter(parent=>known.has(parent));
+   if(parents[0]&&!lanes.includes(parents[0]))lanes[lane]=parents[0];else lanes.splice(lane,1);
+   for(const parent of parents.slice(1))if(!lanes.includes(parent))lanes.push(parent);
+   for(const [from,id] of before.entries()){
+    if(id===row.commit){
+     if(index>0)edges.push([from,from,index,-.5,0]);
+     for(const parent of parents)edges.push([from,lanes.indexOf(parent),index,0,.5]);
+    }else edges.push([from,lanes.indexOf(id),index,-.5,.5]);
+   }
+   positions.push([lane,index,row.parents.length>1]);
+   const control=button('',()=>select(row,control),'dev-git-commit');
+   control.style.paddingLeft=(width+3)+'px';control.title=row.title;
+   control.append(node('b',row.title),node('code',row.commit.slice(0,8)));
+   controls.push(control);graph.append(control);
+  }
+  const maxLane=Math.max(...positions.map(p=>p[0]),...edges.flatMap(edge=>edge.slice(0,2)));
+  const x=lane=>11+lane*Math.min(14,58/Math.max(1,maxLane));
+  const y=(index,offset)=>height*(index+.5+offset);
+  for(const [from,to,index,start,end] of edges){
+   const middle=y(index,(start+end)/2);
+   svg.append(graphic('path',{d:'M'+x(from)+','+y(index,start)+' C'+x(from)+','+middle+' '+x(to)+','+middle+' '+x(to)+','+y(index,end),
+    stroke:palette[(end===0?from:to)%palette.length],'stroke-width':2,fill:'none'}));
+  }
+  for(const [lane,index,merge] of positions)svg.append(graphic('circle',{cx:x(lane),cy:y(index,0),r:merge?4.5:3.5,fill:palette[lane%palette.length]}));
+  function select(row,control){
+   for(const candidate of controls)candidate.setAttribute('aria-pressed',String(candidate===control));
+   detail.replaceChildren();
+   const label=node('div');label.append(node('b',row.title),node('small',row.commit.slice(0,8)+' · '+row.detail+(row.parents.length>1?' · 병합 커밋':'')));
+   const actions=node('div','','dev-result-actions');
+   if(row.open)actions.append(button('GitHub ↗',()=>send('developer-result-open',null,null,{key:data.key,index:String(row.index)})));
+   actions.append(button('Codex에 검토 요청',()=>dialogDraft({...card('codex-git','Git 검토 요청','branch','draft'),
+    request:'현재 프로젝트의 '+row.commit+' 커밋 변경을 검토하고 위험과 빠진 검증을 알려주세요.'})));
+   detail.append(label,actions);
+  }
+  graph.prepend(svg);scroll.append(graph);container.append(scroll,detail);
+  select(commits[0],controls[0]);
+ }
+ function graphic(tag,attributes){
+  const el=document.createElementNS('http://www.w3.org/2000/svg',tag);
+  for(const [key,value] of Object.entries(attributes))el.setAttribute(key,String(value));
+  return el;
+ }
  function renderResult(data){
   if(!state||data.scope!==state.scope)return;
   $('dev-result-title').textContent=data.title;$('dev-result-summary').textContent=data.summary;
   const rows=$('dev-result-rows');rows.replaceChildren();
-  for(const row of data.rows){
+  if(data.graph)renderGitGraph(rows,data);
+  else for(const row of data.rows){
    const el=node('div','','dev-result-row'),text=node('div');
    text.append(node('b',row.title),node('small',row.detail));el.append(text);
    const actions=node('div','','dev-result-actions');
@@ -298,6 +409,7 @@
  }
  function setupConsole(){
   setupTabs();changeTab('Codex');$('dev-search').oninput=renderCards;
+  $('dev-shortcuts').onclick=showShortcuts;
   $('dev-project').onchange=e=>choose('project',e.target.value);$('dev-branch').onchange=e=>choose('branch',e.target.value);
   $('dev-location').onchange=e=>choose('location',e.target.value);$('dev-share').onchange=e=>choose('share',e.target.checked?'on':'off');
   $('dev-layout').onchange=e=>choose('layout',e.target.value);$('dev-add').onclick=()=>run('open-projects');

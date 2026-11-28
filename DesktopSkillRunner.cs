@@ -80,7 +80,7 @@ namespace MinaDesk {
                 }
             }catch(ArgumentException){return false;}catch(InvalidOperationException){return false;}
         }
-        static bool AutomationError(Exception ex) {
+        internal static bool AutomationError(Exception ex) {
             return ex is ElementNotAvailableException || ex is ElementNotEnabledException || ex is InvalidOperationException || ex is COMException || ex is UnauthorizedAccessException || ex is System.ComponentModel.Win32Exception;
         }
         internal static bool SameDraft(string actual,string expected) {

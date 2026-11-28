@@ -170,7 +170,7 @@ internal class Hub(private val app: Application) {
             sender.key == "dev" && (type == "developer-ai" || type == "developer-models") -> handleUtility(sender, type, id, msg.text("provider"))
             type == "developer-show" && sender.key == "macro" -> host?.showPanel("dev")
             sender.key == "dev" && type == "developer-run" -> handleRun(sender, id, msg.text("value"))
-            sender.key == "dev" && type == "developer-choose" -> handleChoose(sender, id, msg.text("value"))
+            sender.key == "dev" && type == "developer-choose" -> handleChoose(sender, id, msg.text("value"), msg.text("effort"))
             sender.key == "dev" && type == "developer-result-open" -> {
                 val index = msg.text("index")?.toIntOrNull()
                 val url = index?.let { lastResultUrls.getOrNull(it) }
@@ -255,7 +255,7 @@ internal class Hub(private val app: Application) {
 
     // ── 개발자 컨트롤 ──────────────────────────────────────────────────────
     private fun developerSnapshot(): JSONObject = obj(
-        "kind" to "developer-state", "scope" to developerScope, "project" to null, "projects" to emptyList<Any>(), "account" to null,
+        "kind" to "developer-state", "desktop" to false, "scope" to developerScope, "project" to null, "projects" to emptyList<Any>(), "account" to null,
         "projectBusy" to false, "projectStatus" to "휴대폰은 PC 의 프로젝트와 GitHub 조회를 대신하지 않습니다. 웹앱·Codex 요청 복사·테마는 사용할 수 있습니다.",
         "readOnly" to false, "shareReady" to false, "branch" to null, "defaultBranch" to null, "branches" to emptyList<Any>(), "branchBusy" to false,
         "needBranches" to false, "branchError" to null, "activePr" to null, "model" to developer.model, "effort" to developer.effort,
@@ -308,7 +308,7 @@ internal class Hub(private val app: Application) {
         }
     }
 
-    private fun handleChoose(sender: PanelView, id: String?, value: String?) {
+    private fun handleChoose(sender: PanelView, id: String?, value: String?, effort: String?) {
         when {
             id == null -> return
             id == "theme" -> value?.let { changeTheme(it) }
@@ -317,6 +317,7 @@ internal class Hub(private val app: Application) {
             id == "layout" -> { notice(sender, "창 배치는 Windows 허브 전용입니다."); sender.send(developerSnapshot()) }
             id == "model" -> { developer.setModel(value); broadcastDeveloper() }
             id == "effort" -> { developer.setEffort(value); broadcastDeveloper() }
+            id == "execution" -> { developer.setExecution(value, effort); broadcastDeveloper() }
             id in DeveloperPreferences.LINK_NAMES -> {
                 try { developer.setWebAddress(id, value); notice(sender, (DeveloperPreferences.LINK_NAMES[id] ?: id) + " 주소를 저장했습니다.") }
                 catch (e: IllegalArgumentException) { notice(sender, e.message ?: "주소를 저장하지 못했습니다.") }

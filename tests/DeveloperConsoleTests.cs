@@ -36,12 +36,17 @@ static class DeveloperConsoleTests {
         Check(read("gh-search","program",null).rows.Single().title=="Program.cs","code search filters cross-repository matches");
         Check(read("gh-actions",null,null).rows.Single().detail.Contains("성공"),"actions from production-shaped data");
         Check(read("gh-deployments",null,null).rows.Single().detail.Contains("성공"),"deployment includes latest status");
+        var graph=github.Graph(repo,"feature/panel",token).GetAwaiter().GetResult();
+        Check(graph.graph && graph.summary.Contains("owner/sample · feature/panel"),"graph keeps the selected repository and branch");
+        Check(graph.rows.Single().title=="Merge branch" && graph.rows.Single().parents.Length==2 &&
+            graph.rows.Single().Address==repo.Url+"/commit/"+graph.rows.Single().commit,"graph keeps both parents and a scoped commit link");
         Check(transport.Routes.All(path=>path.StartsWith("repos/owner/sample",StringComparison.Ordinal)||path.StartsWith("search/code?q=repo%3Aowner%2Fsample",StringComparison.Ordinal)),"every request stays scoped");
         int requests=transport.Routes.Count;
         Reject(()=>read("gh-pr","7/commits",null),"PR number cannot change REST path");
         Reject(()=>read("gh-search","x repo:other/demo",null),"code query cannot introduce qualifiers");
         Reject(()=>read("gh-delete","7",null),"only enumerated read actions");
         Reject(()=>read("gh-compare","feature/panel",null),"same branch cannot compare");
+        Reject(()=>github.Graph(repo,"refs/../main",token).GetAwaiter().GetResult(),"invalid branch cannot change the graph request");
         Check(transport.Routes.Count==requests,"validation happens before network");
         Check(!DeveloperGitHub.GitHubUrl("https://github.com.invalid/a") && !DeveloperGitHub.GitHubUrl("https://user@github.com/a"),"GitHub result link allowlist");
 
@@ -56,6 +61,8 @@ static class DeveloperConsoleTests {
         File.WriteAllText(prefs+".bak","{ broken");
         Check(new DeveloperPreferenceStore(folder).ReadOnly,"damaged preferences are protected");
         Check(DeveloperPreferenceStore.ThreadId("codex://threads/abcdef01")=="abcdef01","Codex technical ID decoded");
+        Check(CodexLocal.ModelId("GPT-6.2 Sol")=="gpt-6.2-sol" && CodexLocal.EffortId("High")=="high" &&
+            CodexLocal.EffortId("앱 기본값")==null,"Codex run uses protocol model and effort values");
         Reject(()=>DeveloperPreferenceStore.ThreadId("codex://threads/abcdef01?prompt=x"),"pinned chat cannot add launch parameters");
         Reject(()=>DeveloperPreferenceStore.CheckWeb("web-nblog","file:///example"),"a browser shortcut cannot launch files");
         Reject(()=>DeveloperPreferenceStore.CheckWeb("web-nblog","https://user:pass@example.com/"),"a shortcut cannot retain credentials");
@@ -84,6 +91,9 @@ static class DeveloperConsoleTests {
             else if(path.StartsWith(route+"/commits/"+sha+"/status?"))value=new{statuses=new[]{new{context="coverage",state="pending"}}};
             else if(path==route+"/compare/main...feature%2Fpanel")value=new{ahead_by=2,behind_by=1};
             else if(path==route+"/contents?ref=feature%2Fpanel")value=new[]{new{path="README.md",type="file",html_url=url+"/blob/feature/panel/README.md"}};
+            else if(path==route+"/commits?per_page=30&sha=feature%2Fpanel")value=new[]{new{sha,
+                commit=new{message="Merge branch\n\nDetails",committer=new{date="2026-11-28T02:43:06Z"}},
+                parents=new[]{new{sha="12abcdef1234567890abcdef1234567890abcdef"},new{sha="34abcdef1234567890abcdef1234567890abcdef"}}}};
             else if(path.StartsWith("search/code?q="))value=new{items=new[]{
                 new{path="Program.cs",html_url=url+"/blob/main/Program.cs",repository=new{full_name="owner/sample"}},
                 new{path="Foreign.cs",html_url="https://github.com/other/demo/blob/main/Foreign.cs",repository=new{full_name="other/demo"}}
