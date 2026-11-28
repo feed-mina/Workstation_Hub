@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Net;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -7,6 +8,8 @@ namespace MinaDesk {
     static class Program {
         [STAThread]
         static void Main() {
+            // The legacy compiler otherwise defaults HTTPS requests to SSL 3.0 and TLS 1.0.
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.SystemDefault;
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             bool first;
