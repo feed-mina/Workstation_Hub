@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -10,10 +11,13 @@ using System.Threading.Tasks;
 namespace MinaDesk {
     internal sealed class DeveloperRow {
         public string title,detail,pr,branch;
+        public string commit;
+        public string[] parents;
         internal string Address;
     }
     internal sealed class DeveloperResult {
         public string title,summary,body;
+        public bool graph;
         public List<DeveloperRow> rows=new List<DeveloperRow>();
         internal void Add(string title,string detail,string address=null,string pr=null,string branch=null) {
             rows.Add(new DeveloperRow{title=Limit(title,300),detail=Limit(detail,1400),Address=address,pr=pr,branch=branch});
@@ -59,6 +63,48 @@ namespace MinaDesk {
         internal static string Route(GitHubRepository repo) {
             if(!GitHubRepository.Valid(repo))throw new InvalidOperationException("GitHub 저장소가 연결된 프로젝트를 선택하세요.");
             return "repos/"+repo.FullName;
+        }
+        internal async Task<DeveloperResult> Graph(GitHubRepository repo,string branch,CancellationToken token) {
+            string path=Route(repo);
+            if(!ValidBranch(branch))throw new InvalidOperationException("브랜치 조회가 끝난 뒤 Git 검토를 여세요.");
+            var commits=Rows(await Get(path+"/commits?per_page=30&sha="+Esc(branch),token));
+            var result=GraphResult(repo.FullName+" · "+branch+" · GitHub");
+            foreach(var row in commits) {
+                var meta=Map(Member(row,"commit"));
+                string sha=Val(row,"sha");
+                if(!ValidSha(sha) || meta==null)continue;
+                AddCommit(result,sha,Val(meta,"message"),Date(Map(Member(meta,"committer")),"date"),
+                    Rows(Member(row,"parents")).Select(p=>Val(p,"sha")),CommitLink(repo,sha));
+            }
+            return result;
+        }
+        internal static DeveloperResult GraphResult(string source) {
+            return new DeveloperResult{title="Git 검토 · 커밋 그래프",summary=source+" · 최근 최대 30개 커밋",graph=true};
+        }
+        internal static async Task<DeveloperResult> LocalGraph(string name,string folder,CancellationToken token) {
+            if(!Directory.Exists(folder))throw new DirectoryNotFoundException("연결한 프로젝트 폴더를 확인하세요.");
+            string git=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"Git","cmd","git.exe");
+            if(!File.Exists(git))throw new InvalidOperationException("로컬 Git 그래프를 보려면 Git for Windows를 설치하세요.");
+            string config=Path.Combine(Path.GetTempPath(),"hub-git-unused");
+            var branch=await GitHubCommand.Run(git,new[]{"-C",folder,"rev-parse","--abbrev-ref","HEAD"},config,null,null,token,15000);
+            if(branch.Code!=0)throw new InvalidOperationException("이 프로젝트의 Git 브랜치를 읽을 수 없습니다.");
+            var log=await GitHubCommand.Run(git,new[]{"-C",folder,"log","--topo-order","-30","-z","--format=%H%x00%P%x00%aI%x00%s","HEAD","--"},config,null,null,token,15000);
+            if(log.Code!=0)throw new InvalidOperationException("이 프로젝트의 Git 커밋을 읽을 수 없습니다.");
+            var result=GraphResult(name+" · "+branch.Output.Trim()+" · 이 PC");
+            string[] fields=log.Output.Split('\0');
+            for(int i=0;i+3<fields.Length;i+=4) {
+                DateTimeOffset date;
+                string time=DateTimeOffset.TryParse(fields[i+2],CultureInfo.InvariantCulture,DateTimeStyles.None,out date)?date.ToLocalTime().ToString("yyyy-MM-dd HH:mm"):"—";
+                AddCommit(result,fields[i],fields[i+3],time,fields[i+1].Split(' '));
+            }
+            return result;
+        }
+        internal static void AddCommit(DeveloperResult result,string sha,string message,string date,IEnumerable<string> parents,string address=null) {
+            if(!ValidSha(sha))return;
+            result.Add((message??"").Split('\n')[0].TrimEnd(),date,address);
+            var row=result.rows.Last();
+            row.commit=sha;
+            row.parents=parents.Where(ValidSha).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         }
         internal static bool ValidBranch(string branch) {
             return !String.IsNullOrWhiteSpace(branch) && branch.Length<=255 && !branch.Any(Char.IsControl) &&

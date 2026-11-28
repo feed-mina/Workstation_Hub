@@ -27,9 +27,7 @@ namespace MinaDesk {
             {"codex-palette","명령 메뉴는 Codex에서 Ctrl+K로 여세요."},
             {"codex-previous","Codex에서 Ctrl+Shift+Tab으로 이전 채팅 또는 탭으로 이동하세요."},
             {"codex-next","Codex에서 Ctrl+Tab으로 다음 채팅 또는 탭으로 이동하세요."},
-            {"codex-find-chat","Codex의 설정 → 키보드 단축키에서 채팅 검색 단축키를 지정할 수 있습니다."},
             {"codex-find-file","Codex에서 Ctrl+P로 프로젝트 파일을 검색하세요."},
-            {"codex-file-tree","Codex에서 Ctrl+Shift+E로 파일 트리를 열거나 닫을 수 있습니다."}
         };
         static readonly Dictionary<string,string> RepoFavorites=new Dictionary<string,string> {
             {"gh-hub","Workstation_Hub"},{"gh-work-cycle","work-cycle"}
@@ -93,7 +91,7 @@ namespace MinaDesk {
         internal object Snapshot() {
             var project=Project;
             var options=Branches;
-            return new {kind="developer-state",scope=Scope(),project=project==null?null:new {
+                return new {kind="developer-state",desktop=true,scope=Scope(),project=project==null?null:new {
                     id=project.Id,name=project.Name,location=project.Location,taskKind=project.TaskKind,folder=project.Folder,
                     repository=Repo==null?null:Repo.FullName,shared=project.Shared,conflict=project.SyncConflict,pending=project.SharedDirty
                 },
@@ -139,8 +137,8 @@ namespace MinaDesk {
             if(disposed || owner.IsDisposed)return;
             string stamp=Scope();
             lastResult=result;resultKey=Guid.NewGuid().ToString("N");
-            owner.Send(new {kind="developer-result",scope=stamp,key=resultKey,result.title,result.summary,result.body,
-                rows=result.rows.Select((row,i)=>new {row.title,row.detail,row.pr,row.branch,index=i,open=row.Address!=null}).ToArray()});
+            owner.Send(new {kind="developer-result",scope=stamp,key=resultKey,result.title,result.summary,result.body,result.graph,
+                rows=result.rows.Select((row,i)=>new {row.title,row.detail,row.pr,row.branch,row.commit,row.parents,index=i,open=row.Address!=null}).ToArray()});
         }
         static bool Confirm(DeskWindow owner,string title,string detail) {
             return MessageBox.Show(owner,detail,title,MessageBoxButtons.OKCancel,MessageBoxIcon.Question,MessageBoxDefaultButton.Button2)==DialogResult.OK;
@@ -213,7 +211,7 @@ namespace MinaDesk {
                 DeveloperResult result;
                 if(type=="developer-result-open"){OpenResult(message);return;}
                 if(type=="developer-choose") {
-                    await Choose(owner,id,input);
+                    await Choose(owner,id,input,Text(message,"effort"));
                     return;
                 }
                 if(type!="developer-run" || String.IsNullOrEmpty(id))return;
@@ -229,7 +227,7 @@ namespace MinaDesk {
         static bool RecordsAction(string id) {
             return Checks.Contains(id) || id=="tool-lock" || id=="tool-record" || id=="tool-screenshot" || id=="gh-new-pr" || id=="gh-new-issue";
         }
-        async Task Choose(DeskWindow owner,string id,string input) {
+        async Task Choose(DeskWindow owner,string id,string input,string effort) {
             switch(id) {
                 case "project":
                     await skills.Handle(owner,"skill-project-select",new Dictionary<string,object>{{"projectId",input}});
@@ -248,6 +246,10 @@ namespace MinaDesk {
                     if(DeveloperPreferenceStore.Models.Contains(input))prefs.Change(v=>v.Model=input);return;
                 case "effort":
                     if(DeveloperPreferenceStore.Efforts.Contains(input))prefs.Change(v=>v.Effort=input);return;
+                case "execution":
+                    if(!DeveloperPreferenceStore.Models.Contains(input) || !DeveloperPreferenceStore.Efforts.Contains(effort))
+                        throw new ArgumentException("지원하는 모델과 추론 강도를 선택하세요.");
+                    prefs.Change(v=>{v.Model=input;v.Effort=effort;});return;
                 case "layout": hub.ChangeLayout(input);return;
                 case "theme": hub.ChangeTheme(input);return;
                 case "restore": hub.Restore(true);return;
@@ -292,7 +294,23 @@ namespace MinaDesk {
             }
             if(RepoFavorites.ContainsKey(id))return Notice(RepoFavorites[id],await SwitchFavorite(owner,id));
             if(Checks.Contains(id))return await Verify(owner,id);
-            if(Requests.ContainsKey(id) || PromptKeys.Contains(id))return Draft(id,input,skillId);
+            if(Requests.ContainsKey(id) || PromptKeys.Contains(id))return await Draft(owner,id,input,skillId);
+            if(id=="git-graph") {
+                var project=Project;
+                if(project==null)throw new InvalidOperationException("Git 그래프를 볼 프로젝트를 선택하세요.");
+                if(project.Repository!=null && (project.Location=="cloud" || RepoKey!=null))
+                    return await github.Graph(RequireRepo(),Branch,lifetime.Token);
+                return await DeveloperGitHub.LocalGraph(project.Name,skills.ToolFolder,lifetime.Token);
+            }
+            if(id=="codex-find-chat" || id=="codex-file-tree") {
+                bool search=id=="codex-find-chat";
+                string label=search?"채팅 찾기":"파일 트리";
+                Codex("");
+                bool opened=await CodexDesktop.OpenPanel(search,lifetime.Token);
+                return Notice(label,opened?"Codex 앱에서 "+label+" 창을 확인했습니다.":search?
+                    "Codex에서 검색창을 확인하지 못했습니다. 명령 메뉴(Ctrl+Shift+P)에서 Search chats를 선택하세요.":
+                    "Codex에서 파일 트리를 확인하지 못했습니다. 프로젝트 작업공간에서 Ctrl+Shift+E를 누르세요.");
+            }
             string tip;
             if(Shortcuts.TryGetValue(id,out tip)) {
                 Codex("");return Notice("Codex에서 이어서 실행",tip);
@@ -386,7 +404,7 @@ namespace MinaDesk {
             if(input.Length>4000 || input.Contains("\0"))throw new ArgumentException("요청문은 4,000자 이내로 작성하세요.");
             return input;
         }
-        DeveloperResult Draft(string id,string input,string skillId) {
+        async Task<DeveloperResult> Draft(DeskWindow owner,string id,string input,string skillId) {
             if(id=="gh-codex")RequireRepo();
             string request=CheckedPrompt(input);
             var project=Project;
@@ -397,8 +415,6 @@ namespace MinaDesk {
                 if(Branch!=null)lines.Add("선택 브랜치 · "+Branch);
                 lines.Add("실행 위치 · "+(project.Location=="cloud"?"클라우드":"이 PC"));
             }
-            if(prefs.Model!=DeveloperPreferenceStore.Models[0])lines.Add("선호 모델 · "+prefs.Model+" (앱에서 확인)");
-            if(prefs.Effort!=DeveloperPreferenceStore.Efforts[0])lines.Add("선호 추론 강도 · "+prefs.Effort+" (앱에서 확인)");
             if(id=="codex-skill-use") {
                 var skill=skills.Installed.FirstOrDefault(s=>s.Id==skillId);
                 if(skill==null)throw new InvalidOperationException("설치된 스킬을 목록에서 선택하세요.");
@@ -409,20 +425,38 @@ namespace MinaDesk {
             if(request.Length>0)lines.Add("\r\n"+request);
             string draft=String.Join("\r\n",lines).Trim();
             string folder=skills.Folder;
-            if(Directory.Exists(folder)) {
-                DesktopSkillRunner.OpenDraft(folder,draft);
-                return new DeveloperResult{title="Codex 요청 준비",summary="지정한 로컬 프로젝트의 작성창을 열었습니다. 앱에서 요청을 검토하고 전송하세요.",body=draft};
+            if(Directory.Exists(folder) && request.Length>0) {
+                string cli=AiCli.Find("gpt");
+                var sent=await CodexLocal.Submit(cli,folder,draft,CodexLocal.ModelId(prefs.Model),CodexLocal.EffortId(prefs.Effort),lifetime.Token);
+                ObserveCodexCompletion(owner,sent);
+                return Notice("Codex 요청 전송",sent.Model+(sent.Effort==null?"":" · "+sent.Effort)+
+                    (TryOpenCodexThread(sent.ThreadId)?" · 전송을 접수해 Codex 대화를 열었습니다.":" · 전송을 접수했습니다. Codex 대화 ID "+sent.ThreadId));
             }
-            if(project!=null && project.Location=="local")throw new DirectoryNotFoundException("로컬 프로젝트 폴더를 프로젝트 설정에서 다시 연결하세요.");
-            if(project==null && draft.Length==0) {
+            if(project!=null && project.Location=="local") {
+                if(!Directory.Exists(folder))throw new DirectoryNotFoundException("로컬 프로젝트 폴더를 프로젝트 설정에서 다시 연결하세요.");
+                DesktopSkillRunner.OpenDraft(folder,draft);
+                return Notice("새 채팅","선택한 프로젝트의 Codex 작성창을 열었습니다.");
+            }
+            if(draft.Length==0) {
                 Codex("threads/new");
                 return Notice("새 채팅","Codex에 새 채팅 열기를 요청했습니다.");
             }
-            if(draft.Length>0)Clipboard.SetText(draft);
-            Codex("");
+            string target="threads/new?prompt="+Uri.EscapeDataString(draft);
+            if(target.Length>30000)throw new ArgumentException("Codex 작성창에 전달할 요청문이 너무 깁니다.");
+            Codex(target);
+            string settings=prefs.Model+" · "+prefs.Effort;
             return new DeveloperResult{title="Codex 요청 준비",summary=project==null?
-                "요청을 복사했습니다. Codex에서 작업 환경을 선택하고 붙여넣으세요.":
-                "요청을 복사했습니다. Codex에서 클라우드 환경과 저장소를 선택하고 붙여넣으세요.",body=draft};
+                "Codex에 요청문을 넣은 작성창 열기를 요청했습니다. 작업 환경과 "+settings+" 설정을 확인한 뒤 보내세요.":
+                "Codex에 요청문을 넣은 작성창 열기를 요청했습니다. 클라우드와 저장소·브랜치, "+settings+" 설정을 확인한 뒤 보내세요.",body=draft};
+        }
+        async void ObserveCodexCompletion(DeskWindow owner,CodexSubmission sent) {
+            if(!await sent.Completion && !disposed && !owner.IsDisposed)
+                owner.Send(new {kind="notice",text="Codex가 작업 완료를 확인하지 못했습니다. 대화 "+sent.ThreadId+"에서 진행 상태를 확인하세요."});
+        }
+        static bool TryOpenCodexThread(string id) {
+            try {Codex("threads/"+id);return true;}
+            catch(InvalidOperationException){return false;}
+            catch(System.ComponentModel.Win32Exception){return false;}
         }
         string Folder(string id) {
             string custom=DeveloperPreferenceStore.Lookup(prefs.Value.Folders,id);

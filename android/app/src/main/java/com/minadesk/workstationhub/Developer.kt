@@ -10,6 +10,9 @@ internal class DeveloperPreferences(private val prefs: SharedPreferences) {
 
     fun setModel(value: String?) { if (value in MODELS) prefs.edit().putString("model", value).apply() }
     fun setEffort(value: String?) { if (value in EFFORTS) prefs.edit().putString("effort", value).apply() }
+    fun setExecution(model: String?, effort: String?) {
+        if (model in MODELS && effort in EFFORTS) prefs.edit().putString("model", model).putString("effort", effort).apply()
+    }
 
     fun prompt(index: Int): String = prefs.getString("prompt-$index", "") ?: ""
     fun setPrompt(index: Int, value: String?) { prefs.edit().putString("prompt-$index", (value ?: "").take(4000)).apply() }

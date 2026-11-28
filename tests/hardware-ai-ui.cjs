@@ -39,8 +39,10 @@ assert.equal(get('gpu-temperature').title,'GPU 코어 · Windows');
 vm.runInContext(write('developer.js'),env);
 const view=window.developerView;
 view.setup('dev',(type,details)=>events.push({type,details}));
-assert.ok(get('dev-cards').children.some(card=>card.dataset.card==='codex-model-comparison'));
-assert.ok(!get('dev-cards').children.some(card=>card.dataset.card==='codex-sidebar'));
+const deviceCards=get('dev-cards').children.map(card=>card.dataset.card);
+for(const id of ['execution','codex-find-chat','codex-file-tree','git-graph','prompt-1','prompt-2','prompt-3'])assert.ok(deviceCards.includes(id),id);
+for(const id of ['codex-sidebar','codex-previous','codex-next','codex-model-comparison'])assert.ok(!deviceCards.includes(id),id);
+assert.equal(typeof get('dev-shortcuts').onclick,'function');
 get('dev-ai').onclick();
 assert.equal(events.at(-1).type,'developer-ai');
 view.receive({kind:'ai-account-state',providers:[
